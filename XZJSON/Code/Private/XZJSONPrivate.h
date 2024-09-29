@@ -672,10 +672,10 @@ FOUNDATION_STATIC_INLINE id YYValueForMultiKeys(__unsafe_unretained NSDictionary
 
 
 typedef struct {
-    void *modelMeta;  ///< XZJSONObjcClassMeta
+    void *descriptor;  ///< XZJSONObjcClassMeta
     void *model;      ///< id (self)
     void *dictionary; ///< NSDictionary (json)
-} ModelSetContext;
+} XZJSONEncodingContext;
 
 /**
  Apply function for dictionary, to set the key-value pair to model.
@@ -684,9 +684,9 @@ typedef struct {
  @param _value   should not be nil.
  @param _context _context.modelMeta and _context.model should not be nil.
  */
-FOUNDATION_STATIC_INLINE void ModelSetWithDictionaryFunction(const void *_key, const void *_value, void *_context) {
-    ModelSetContext *context = _context;
-    __unsafe_unretained XZJSONClassDescriptor *meta = (__bridge XZJSONClassDescriptor *)(context->modelMeta);
+FOUNDATION_STATIC_INLINE void XZJSONDecodingDictionaryEnumeratorFunction(const void *_key, const void *_value, void *_context) {
+    XZJSONEncodingContext *context = _context;
+    __unsafe_unretained XZJSONClassDescriptor *meta = (__bridge XZJSONClassDescriptor *)(context->descriptor);
     __unsafe_unretained XZJSONPropertyDescriptor *propertyMeta = [meta->_mapper objectForKey:(__bridge id)(_key)];
     __unsafe_unretained id model = (__bridge id)(context->model);
     while (propertyMeta) {
@@ -703,8 +703,8 @@ FOUNDATION_STATIC_INLINE void ModelSetWithDictionaryFunction(const void *_key, c
  @param _propertyMeta should not be nil, XZJSONObjcPropertyMeta.
  @param _context      _context.model and _context.dictionary should not be nil.
  */
-FOUNDATION_STATIC_INLINE void ModelSetWithPropertyMetaArrayFunction(const void *_propertyMeta, void *_context) {
-    ModelSetContext *context = _context;
+FOUNDATION_STATIC_INLINE void XZJSONDecodingArrayEnumeratorFunction(const void *_propertyMeta, void *_context) {
+    XZJSONEncodingContext *context = _context;
     __unsafe_unretained NSDictionary *dictionary = (__bridge NSDictionary *)(context->dictionary);
     __unsafe_unretained XZJSONPropertyDescriptor *propertyMeta = (__bridge XZJSONPropertyDescriptor *)(_propertyMeta);
     if (!propertyMeta->_setter) return;
@@ -763,7 +763,7 @@ FOUNDATION_STATIC_INLINE NSDateFormatter *YYISODateFormatter(void) {
  @param model Model, can be nil.
  @return JSON object, nil if an error occurs.
  */
-FOUNDATION_STATIC_INLINE id ModelToJSONObjectRecursive(NSObject *model) {
+FOUNDATION_STATIC_INLINE id XZJSONEncodingRecursive(NSObject *model) {
     if (!model || model == (id)kCFNull) return model;
     if ([model isKindOfClass:[NSString class]]) return model;
     if ([model isKindOfClass:[NSNumber class]]) return model;
@@ -773,7 +773,7 @@ FOUNDATION_STATIC_INLINE id ModelToJSONObjectRecursive(NSObject *model) {
         [((NSDictionary *)model) enumerateKeysAndObjectsUsingBlock:^(NSString *key, id obj, BOOL *stop) {
             NSString *stringKey = [key isKindOfClass:[NSString class]] ? key : key.description;
             if (!stringKey) return;
-            id jsonObj = ModelToJSONObjectRecursive(obj);
+            id jsonObj = XZJSONEncodingRecursive(obj);
             if (!jsonObj) jsonObj = (id)kCFNull;
             newDic[stringKey] = jsonObj;
         }];
@@ -787,7 +787,7 @@ FOUNDATION_STATIC_INLINE id ModelToJSONObjectRecursive(NSObject *model) {
             if ([obj isKindOfClass:[NSString class]] || [obj isKindOfClass:[NSNumber class]]) {
                 [newArray addObject:obj];
             } else {
-                id jsonObj = ModelToJSONObjectRecursive(obj);
+                id jsonObj = XZJSONEncodingRecursive(obj);
                 if (jsonObj && jsonObj != (id)kCFNull) [newArray addObject:jsonObj];
             }
         }
@@ -800,7 +800,7 @@ FOUNDATION_STATIC_INLINE id ModelToJSONObjectRecursive(NSObject *model) {
             if ([obj isKindOfClass:[NSString class]] || [obj isKindOfClass:[NSNumber class]]) {
                 [newArray addObject:obj];
             } else {
-                id jsonObj = ModelToJSONObjectRecursive(obj);
+                id jsonObj = XZJSONEncodingRecursive(obj);
                 if (jsonObj && jsonObj != (id)kCFNull) [newArray addObject:jsonObj];
             }
         }
@@ -824,12 +824,12 @@ FOUNDATION_STATIC_INLINE id ModelToJSONObjectRecursive(NSObject *model) {
             value = ModelCreateNumberFromProperty(model, propertyMeta);
         } else if (propertyMeta->_nsType) {
             id v = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
-            value = ModelToJSONObjectRecursive(v);
+            value = XZJSONEncodingRecursive(v);
         } else {
             switch (propertyMeta->_type & XZObjcTypeMask) {
                 case XZObjcTypeObject: {
                     id v = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
-                    value = ModelToJSONObjectRecursive(v);
+                    value = XZJSONEncodingRecursive(v);
                     if (value == (id)kCFNull) value = nil;
                 } break;
                 case XZObjcTypeClass: {

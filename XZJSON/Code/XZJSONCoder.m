@@ -7,8 +7,30 @@
 
 #import "XZJSONCoder.h"
 #import "NSObject+YYModel.h"
+#import "XZJSONClassDescriptor.h"
+#import "XZJSONPrivate.h"
 
 @implementation XZJSONCoder
+
+#pragma mark - Encoder
+
++ (NSData *)encodeObject:(id)object options:(NSJSONWritingOptions)options error:(NSError *__autoreleasing  _Nullable * _Nullable)error {
+    if (object == nil) {
+        return nil;
+    }
+    
+    id const JSONObject = [self _encodeObject:object];
+    
+    if (JSONObject == nil) {
+        return nil;
+    }
+    
+    return [NSJSONSerialization dataWithJSONObject:JSONObject options:options error:error];
+}
+
++ (void)object:(id)object encodeIntoDictionary:(NSMutableDictionary *)dictionary {
+    XZJSONEncodingRecursive(object);
+}
 
 /// 返回 JSONObject
 + (id)_encodeObject:(id)object {
@@ -44,21 +66,15 @@
         }];
         return dictM;
     }
-    return [object encodeIntoJSONDictionary];
-}
-+ (NSData *)encodeObject:(id)object options:(NSJSONWritingOptions)options error:(NSError *__autoreleasing  _Nullable * _Nullable)error {
-    if (object == nil) {
-        return nil;
+    if ([object conformsToProtocol:@protocol(XZJSONEncoding)]) {
+        return [(id<XZJSONEncoding>)object encodeIntoJSONDictionary];
     }
-    
-    id const JSONObject = [self _encodeObject:object];
-    
-    if (JSONObject == nil) {
-        return nil;
-    }
-    
-    return [NSJSONSerialization dataWithJSONObject:JSONObject options:options error:error];
+    NSMutableDictionary *dictionary = [NSMutableDictionary dictionary];
+    [self object:object encodeIntoDictionary:dictionary];
+    return dictionary;
 }
+
+#pragma mark - Decoder
 
 + (id)decodeJSON:(id)json forClass:(Class)aClass options:(NSJSONReadingOptions)options {
     if (json == nil || json == NSNull.null) {
@@ -108,7 +124,33 @@
         return nil;
     }
     if ([object isKindOfClass:NSDictionary.class]) {
-        return [[aClass alloc] initWithJSONDictionary:object];
+        XZJSONClassDescriptor * const descriptor = [XZJSONClassDescriptor descriptorForClass:aClass];
+        
+        if (descriptor->_supportsXZJSONDecoding) {
+            if (descriptor->_forwardsDecodeForClass) {
+                aClass = [aClass forwardingClassForJSONDictionary:object];
+                if (aClass == Nil) {
+                    return nil;
+                }
+            }
+            
+            if (descriptor->_canEncodeFromDictionary) {
+                object = [aClass canDecodeFromJSONDictionary:object];
+                if (object == nil) {
+                    return nil;
+                }
+            }
+            
+            if (descriptor->_usesDecodingInitializer) {
+                return [[aClass alloc] initWithJSONDictionary:object];
+            }
+        }
+        
+        id model = [aClass new];
+        if (model != nil) {
+            [self object:model decodeWithDictionary:object];
+        }
+        return model;
     }
     if ([object isKindOfClass:NSArray.class]) {
         NSArray * const array = object;
@@ -132,12 +174,42 @@
 }
 
 + (void)object:(id)object decodeWithDictionary:(NSDictionary *)dictionary {
-    
+    XZJSONClassDescriptor * const descriptor = [XZJSONClassDescriptor descriptorForClass:[object class]];
+    [self object:object decodeWithDictionary:dictionary descriptor:descriptor];
 }
 
-+ (void)object:(id)object encodeIntoDictionary:(NSMutableDictionary *)dictionary {
+// yy_modelSetWithDictionary
++ (void)object:(id)object decodeWithDictionary:(NSDictionary *)dictionary descriptor:(XZJSONClassDescriptor *)modelMeta {
+    if (modelMeta->_keyMappedCount == 0) return;
+   
+    XZJSONEncodingContext context = {0};
+    context.descriptor = (__bridge void *)(modelMeta);
+    context.model      = (__bridge void *)(object);
+    context.dictionary = (__bridge void *)(dictionary);
     
+    if (modelMeta->_keyMappedCount >= CFDictionaryGetCount((CFDictionaryRef)dictionary)) {
+        CFDictionaryApplyFunction((CFDictionaryRef)dictionary, XZJSONDecodingDictionaryEnumeratorFunction, &context);
+        if (modelMeta->_keyPathPropertyMetas) {
+            CFArrayApplyFunction((CFArrayRef)modelMeta->_keyPathPropertyMetas,
+                                 CFRangeMake(0, CFArrayGetCount((CFArrayRef)modelMeta->_keyPathPropertyMetas)),
+                                 XZJSONDecodingArrayEnumeratorFunction,
+                                 &context);
+        }
+        if (modelMeta->_multiKeysPropertyMetas) {
+            CFArrayApplyFunction((CFArrayRef)modelMeta->_multiKeysPropertyMetas,
+                                 CFRangeMake(0, CFArrayGetCount((CFArrayRef)modelMeta->_multiKeysPropertyMetas)),
+                                 XZJSONDecodingArrayEnumeratorFunction,
+                                 &context);
+        }
+    } else {
+        CFArrayApplyFunction((CFArrayRef)modelMeta->_allPropertyMetas,
+                             CFRangeMake(0, modelMeta->_keyMappedCount),
+                             XZJSONDecodingArrayEnumeratorFunction,
+                             &context);
+    }
 }
+
+
 
 @end
 

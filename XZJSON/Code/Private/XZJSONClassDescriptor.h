@@ -31,8 +31,13 @@ NS_ASSUME_NONNULL_BEGIN
     BOOL _hasCustomWillTransformFromDictionary;
     BOOL _hasCustomTransformFromDictionary;
     BOOL _hasCustomTransformToDictionary;
+    
     BOOL _supportsXZJSONDecoding;
     BOOL _forwardsDecodeForClass; ///< 转发模型解析
+    BOOL _canEncodeFromDictionary;
+    BOOL _usesDecodingInitializer;
+    
+    BOOL _supportsXZJSONEncoding;
 }
 - (nullable instancetype)initWithClass:(Class)aClass NS_DESIGNATED_INITIALIZER;
 - (instancetype)init NS_UNAVAILABLE;

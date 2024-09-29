@@ -169,6 +169,8 @@
     _supportsXZJSONDecoding = [aClass conformsToProtocol:@protocol(XZJSONDecoding)];
     _forwardsDecodeForClass = (_supportsXZJSONDecoding && [aClass respondsToSelector:@selector(forwardingClassForJSONDictionary:)]);
     
+    _supportsXZJSONEncoding = [aClass conformsToProtocol:@protocol(XZJSONDecoding)];
+    
     return self;
 }
 

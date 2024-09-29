@@ -72,30 +72,30 @@
         if (![dic isKindOfClass:[NSDictionary class]]) return NO;
     }
     
-    ModelSetContext context = {0};
-    context.modelMeta = (__bridge void *)(modelMeta);
+    XZJSONEncodingContext context = {0};
+    context.descriptor = (__bridge void *)(modelMeta);
     context.model = (__bridge void *)(self);
     context.dictionary = (__bridge void *)(dic);
     
     
     if (modelMeta->_keyMappedCount >= CFDictionaryGetCount((CFDictionaryRef)dic)) {
-        CFDictionaryApplyFunction((CFDictionaryRef)dic, ModelSetWithDictionaryFunction, &context);
+        CFDictionaryApplyFunction((CFDictionaryRef)dic, XZJSONDecodingDictionaryEnumeratorFunction, &context);
         if (modelMeta->_keyPathPropertyMetas) {
             CFArrayApplyFunction((CFArrayRef)modelMeta->_keyPathPropertyMetas,
                                  CFRangeMake(0, CFArrayGetCount((CFArrayRef)modelMeta->_keyPathPropertyMetas)),
-                                 ModelSetWithPropertyMetaArrayFunction,
+                                 XZJSONDecodingArrayEnumeratorFunction,
                                  &context);
         }
         if (modelMeta->_multiKeysPropertyMetas) {
             CFArrayApplyFunction((CFArrayRef)modelMeta->_multiKeysPropertyMetas,
                                  CFRangeMake(0, CFArrayGetCount((CFArrayRef)modelMeta->_multiKeysPropertyMetas)),
-                                 ModelSetWithPropertyMetaArrayFunction,
+                                 XZJSONDecodingArrayEnumeratorFunction,
                                  &context);
         }
     } else {
         CFArrayApplyFunction((CFArrayRef)modelMeta->_allPropertyMetas,
                              CFRangeMake(0, modelMeta->_keyMappedCount),
-                             ModelSetWithPropertyMetaArrayFunction,
+                             XZJSONDecodingArrayEnumeratorFunction,
                              &context);
     }
     
@@ -113,7 +113,7 @@
      All dictionary keys are instances of NSString.
      Numbers are not NaN or infinity.
      */
-    id jsonObject = ModelToJSONObjectRecursive(self);
+    id jsonObject = XZJSONEncodingRecursive(self);
     if ([jsonObject isKindOfClass:[NSArray class]]) return jsonObject;
     if ([jsonObject isKindOfClass:[NSDictionary class]]) return jsonObject;
     return nil;
