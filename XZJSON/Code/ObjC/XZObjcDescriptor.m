@@ -1,5 +1,5 @@
 //
-//  YYClassInfo.m
+//  XZObjcDescriptor.m
 //  YYModel <https://github.com/ibireme/YYModel>
 //
 //  Created by ibireme on 15/5/9.
@@ -9,45 +9,45 @@
 //  LICENSE file in the root directory of this source tree.
 //
 
-#import "YYClassInfo.h"
+#import "XZObjcDescriptor.h"
 #import <objc/runtime.h>
 
-YYEncodingType YYEncodingGetType(const char *typeEncoding) {
+XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding) {
     char *type = (char *)typeEncoding;
-    if (!type) return YYEncodingTypeUnknown;
+    if (!type) return XZObjcTypeUnknown;
     size_t len = strlen(type);
-    if (len == 0) return YYEncodingTypeUnknown;
+    if (len == 0) return XZObjcTypeUnknown;
     
-    YYEncodingType qualifier = 0;
+    XZObjcType qualifier = 0;
     bool prefix = true;
     while (prefix) {
         switch (*type) {
             case 'r': {
-                qualifier |= YYEncodingTypeQualifierConst;
+                qualifier |= XZObjcTypeQualifierConst;
                 type++;
             } break;
             case 'n': {
-                qualifier |= YYEncodingTypeQualifierIn;
+                qualifier |= XZObjcTypeQualifierIn;
                 type++;
             } break;
             case 'N': {
-                qualifier |= YYEncodingTypeQualifierInout;
+                qualifier |= XZObjcTypeQualifierInout;
                 type++;
             } break;
             case 'o': {
-                qualifier |= YYEncodingTypeQualifierOut;
+                qualifier |= XZObjcTypeQualifierOut;
                 type++;
             } break;
             case 'O': {
-                qualifier |= YYEncodingTypeQualifierBycopy;
+                qualifier |= XZObjcTypeQualifierBycopy;
                 type++;
             } break;
             case 'R': {
-                qualifier |= YYEncodingTypeQualifierByref;
+                qualifier |= XZObjcTypeQualifierByref;
                 type++;
             } break;
             case 'V': {
-                qualifier |= YYEncodingTypeQualifierOneway;
+                qualifier |= XZObjcTypeQualifierOneway;
                 type++;
             } break;
             default: { prefix = false; } break;
@@ -55,47 +55,47 @@ YYEncodingType YYEncodingGetType(const char *typeEncoding) {
     }
 
     len = strlen(type);
-    if (len == 0) return YYEncodingTypeUnknown | qualifier;
+    if (len == 0) return XZObjcTypeUnknown | qualifier;
 
     switch (*type) {
-        case 'v': return YYEncodingTypeVoid | qualifier;
-        case 'B': return YYEncodingTypeBool | qualifier;
-        case 'c': return YYEncodingTypeInt8 | qualifier;
-        case 'C': return YYEncodingTypeUInt8 | qualifier;
-        case 's': return YYEncodingTypeInt16 | qualifier;
-        case 'S': return YYEncodingTypeUInt16 | qualifier;
-        case 'i': return YYEncodingTypeInt32 | qualifier;
-        case 'I': return YYEncodingTypeUInt32 | qualifier;
-        case 'l': return YYEncodingTypeInt32 | qualifier;
-        case 'L': return YYEncodingTypeUInt32 | qualifier;
-        case 'q': return YYEncodingTypeInt64 | qualifier;
-        case 'Q': return YYEncodingTypeUInt64 | qualifier;
-        case 'f': return YYEncodingTypeFloat | qualifier;
-        case 'd': return YYEncodingTypeDouble | qualifier;
-        case 'D': return YYEncodingTypeLongDouble | qualifier;
-        case '#': return YYEncodingTypeClass | qualifier;
-        case ':': return YYEncodingTypeSEL | qualifier;
-        case '*': return YYEncodingTypeCString | qualifier;
-        case '^': return YYEncodingTypePointer | qualifier;
-        case '[': return YYEncodingTypeCArray | qualifier;
-        case '(': return YYEncodingTypeUnion | qualifier;
-        case '{': return YYEncodingTypeStruct | qualifier;
+        case 'v': return XZObjcTypeVoid | qualifier;
+        case 'B': return XZObjcTypeBool | qualifier;
+        case 'c': return XZObjcTypeInt8 | qualifier;
+        case 'C': return XZObjcTypeUInt8 | qualifier;
+        case 's': return XZObjcTypeInt16 | qualifier;
+        case 'S': return XZObjcTypeUInt16 | qualifier;
+        case 'i': return XZObjcTypeInt32 | qualifier;
+        case 'I': return XZObjcTypeUInt32 | qualifier;
+        case 'l': return XZObjcTypeInt32 | qualifier;
+        case 'L': return XZObjcTypeUInt32 | qualifier;
+        case 'q': return XZObjcTypeInt64 | qualifier;
+        case 'Q': return XZObjcTypeUInt64 | qualifier;
+        case 'f': return XZObjcTypeFloat | qualifier;
+        case 'd': return XZObjcTypeDouble | qualifier;
+        case 'D': return XZObjcTypeLongDouble | qualifier;
+        case '#': return XZObjcTypeClass | qualifier;
+        case ':': return XZObjcTypeSEL | qualifier;
+        case '*': return XZObjcTypeCString | qualifier;
+        case '^': return XZObjcTypePointer | qualifier;
+        case '[': return XZObjcTypeCArray | qualifier;
+        case '(': return XZObjcTypeUnion | qualifier;
+        case '{': return XZObjcTypeStruct | qualifier;
         case '@': {
             if (len == 2 && *(type + 1) == '?')
-                return YYEncodingTypeBlock | qualifier;
+                return XZObjcTypeBlock | qualifier;
             else
-                return YYEncodingTypeObject | qualifier;
+                return XZObjcTypeObject | qualifier;
         }
-        default: return YYEncodingTypeUnknown | qualifier;
+        default: return XZObjcTypeUnknown | qualifier;
     }
 }
 
-@implementation YYClassIvarInfo
+@implementation XZObjcIvarDescriptor
 
 - (instancetype)initWithIvar:(Ivar)ivar {
     if (!ivar) return nil;
     self = [super init];
-    _ivar = ivar;
+    _origin = ivar;
     const char *name = ivar_getName(ivar);
     if (name) {
         _name = [NSString stringWithUTF8String:name];
@@ -104,19 +104,20 @@ YYEncodingType YYEncodingGetType(const char *typeEncoding) {
     const char *typeEncoding = ivar_getTypeEncoding(ivar);
     if (typeEncoding) {
         _typeEncoding = [NSString stringWithUTF8String:typeEncoding];
-        _type = YYEncodingGetType(typeEncoding);
+        _type = XZObjcTypeFromEncoding(typeEncoding);
     }
+    
     return self;
 }
 
 @end
 
-@implementation YYClassMethodInfo
+@implementation XZObjcMethodDescriptor
 
 - (instancetype)initWithMethod:(Method)method {
     if (!method) return nil;
     self = [super init];
-    _method = method;
+    _origin = method;
     _sel = method_getName(method);
     _imp = method_getImplementation(method);
     const char *name = sel_getName(_sel);
@@ -148,18 +149,18 @@ YYEncodingType YYEncodingGetType(const char *typeEncoding) {
 
 @end
 
-@implementation YYClassPropertyInfo
+@implementation XZObjcPropertyDescriptor
 
 - (instancetype)initWithProperty:(objc_property_t)property {
     if (!property) return nil;
     self = [super init];
-    _property = property;
+    _origin = property;
     const char *name = property_getName(property);
     if (name) {
         _name = [NSString stringWithUTF8String:name];
     }
     
-    YYEncodingType type = 0;
+    XZObjcType type = 0;
     unsigned int attrCount;
     objc_property_attribute_t *attrs = property_copyAttributeList(property, &attrCount);
     for (unsigned int i = 0; i < attrCount; i++) {
@@ -167,9 +168,9 @@ YYEncodingType YYEncodingGetType(const char *typeEncoding) {
             case 'T': { // Type encoding
                 if (attrs[i].value) {
                     _typeEncoding = [NSString stringWithUTF8String:attrs[i].value];
-                    type = YYEncodingGetType(attrs[i].value);
+                    type = XZObjcTypeFromEncoding(attrs[i].value);
                     
-                    if ((type & YYEncodingTypeMask) == YYEncodingTypeObject && _typeEncoding.length) {
+                    if ((type & XZObjcTypeMask) == XZObjcTypeObject && _typeEncoding.length) {
                         NSScanner *scanner = [NSScanner scannerWithString:_typeEncoding];
                         if (![scanner scanString:@"@\"" intoString:NULL]) continue;
                         
@@ -199,31 +200,31 @@ YYEncodingType YYEncodingGetType(const char *typeEncoding) {
                 }
             } break;
             case 'R': {
-                type |= YYEncodingTypePropertyReadonly;
+                type |= XZObjcTypePropertyReadonly;
             } break;
             case 'C': {
-                type |= YYEncodingTypePropertyCopy;
+                type |= XZObjcTypePropertyCopy;
             } break;
             case '&': {
-                type |= YYEncodingTypePropertyRetain;
+                type |= XZObjcTypePropertyRetain;
             } break;
             case 'N': {
-                type |= YYEncodingTypePropertyNonatomic;
+                type |= XZObjcTypePropertyNonatomic;
             } break;
             case 'D': {
-                type |= YYEncodingTypePropertyDynamic;
+                type |= XZObjcTypePropertyDynamic;
             } break;
             case 'W': {
-                type |= YYEncodingTypePropertyWeak;
+                type |= XZObjcTypePropertyWeak;
             } break;
             case 'G': {
-                type |= YYEncodingTypePropertyCustomGetter;
+                type |= XZObjcTypePropertyCustomGetter;
                 if (attrs[i].value) {
                     _getter = NSSelectorFromString([NSString stringWithUTF8String:attrs[i].value]);
                 }
             } break;
             case 'S': {
-                type |= YYEncodingTypePropertyCustomSetter;
+                type |= XZObjcTypePropertyCustomSetter;
                 if (attrs[i].value) {
                     _setter = NSSelectorFromString([NSString stringWithUTF8String:attrs[i].value]);
                 }
@@ -250,39 +251,46 @@ YYEncodingType YYEncodingGetType(const char *typeEncoding) {
 
 @end
 
-@implementation YYClassInfo {
-    BOOL _needUpdate;
+@implementation XZObjcClassDescriptor {
+    BOOL _isValid;
 }
 
 - (instancetype)initWithClass:(Class)cls {
-    if (!cls) return nil;
+    NSParameterAssert(cls != nil);
     self = [super init];
-    _cls = cls;
-    _superCls = class_getSuperclass(cls);
-    _isMeta = class_isMetaClass(cls);
-    if (!_isMeta) {
-        _metaCls = objc_getMetaClass(class_getName(cls));
-    }
-    _name = NSStringFromClass(cls);
-    [self _update];
+    if (self) {
+        _isValid = NO;
+        _origin = cls;
+        _originSuperClass = class_getSuperclass(cls);
+        _isMetaClass = class_isMetaClass(cls);
+        if (!_isMetaClass) {
+            _originMetaClass = objc_getMetaClass(class_getName(cls));
+        }
+        _name = NSStringFromClass(cls);
+        [self activateIfNeeded];
 
-    _superClassInfo = [self.class classInfoWithClass:_superCls];
+        _superClassDescriptor = [self.class descriptorForClass:_originSuperClass];
+    }
     return self;
 }
 
-- (void)_update {
-    _ivarInfos = nil;
-    _methodInfos = nil;
-    _propertyInfos = nil;
+- (void)activateIfNeeded {
+    if (_isValid) {
+        return;
+    }
+    _isValid = YES;
+    _ivars = nil;
+    _methods = nil;
+    _properties = nil;
     
-    Class cls = self.cls;
+    Class cls = self.origin;
     unsigned int methodCount = 0;
     Method *methods = class_copyMethodList(cls, &methodCount);
     if (methods) {
         NSMutableDictionary *methodInfos = [NSMutableDictionary new];
-        _methodInfos = methodInfos;
+        _methods = methodInfos;
         for (unsigned int i = 0; i < methodCount; i++) {
-            YYClassMethodInfo *info = [[YYClassMethodInfo alloc] initWithMethod:methods[i]];
+            XZObjcMethodDescriptor *info = [[XZObjcMethodDescriptor alloc] initWithMethod:methods[i]];
             if (info.name) methodInfos[info.name] = info;
         }
         free(methods);
@@ -291,9 +299,9 @@ YYEncodingType YYEncodingGetType(const char *typeEncoding) {
     objc_property_t *properties = class_copyPropertyList(cls, &propertyCount);
     if (properties) {
         NSMutableDictionary *propertyInfos = [NSMutableDictionary new];
-        _propertyInfos = propertyInfos;
+        _properties = propertyInfos;
         for (unsigned int i = 0; i < propertyCount; i++) {
-            YYClassPropertyInfo *info = [[YYClassPropertyInfo alloc] initWithProperty:properties[i]];
+            XZObjcPropertyDescriptor *info = [[XZObjcPropertyDescriptor alloc] initWithProperty:properties[i]];
             if (info.name) propertyInfos[info.name] = info;
         }
         free(properties);
@@ -303,30 +311,30 @@ YYEncodingType YYEncodingGetType(const char *typeEncoding) {
     Ivar *ivars = class_copyIvarList(cls, &ivarCount);
     if (ivars) {
         NSMutableDictionary *ivarInfos = [NSMutableDictionary new];
-        _ivarInfos = ivarInfos;
+        _ivars = ivarInfos;
         for (unsigned int i = 0; i < ivarCount; i++) {
-            YYClassIvarInfo *info = [[YYClassIvarInfo alloc] initWithIvar:ivars[i]];
+            XZObjcIvarDescriptor *info = [[XZObjcIvarDescriptor alloc] initWithIvar:ivars[i]];
             if (info.name) ivarInfos[info.name] = info;
         }
         free(ivars);
     }
     
-    if (!_ivarInfos) _ivarInfos = @{};
-    if (!_methodInfos) _methodInfos = @{};
-    if (!_propertyInfos) _propertyInfos = @{};
+    if (!_ivars) _ivars = @{};
+    if (!_methods) _methods = @{};
+    if (!_properties) _properties = @{};
     
-    _needUpdate = NO;
+    _isValid = NO;
 }
 
-- (void)setNeedUpdate {
-    _needUpdate = YES;
+- (void)invalidate {
+    _isValid = NO;
 }
 
-- (BOOL)needUpdate {
-    return _needUpdate;
+- (BOOL)isValid {
+    return _isValid;
 }
 
-+ (instancetype)classInfoWithClass:(Class)cls {
++ (instancetype)descriptorForClass:(Class)cls {
     if (!cls) return nil;
     static CFMutableDictionaryRef classCache;
     static CFMutableDictionaryRef metaCache;
@@ -338,25 +346,20 @@ YYEncodingType YYEncodingGetType(const char *typeEncoding) {
         lock = dispatch_semaphore_create(1);
     });
     dispatch_semaphore_wait(lock, DISPATCH_TIME_FOREVER);
-    YYClassInfo *info = CFDictionaryGetValue(class_isMetaClass(cls) ? metaCache : classCache, (__bridge const void *)(cls));
-    if (info && info->_needUpdate) {
-        [info _update];
+    XZObjcClassDescriptor *meta = CFDictionaryGetValue(class_isMetaClass(cls) ? metaCache : classCache, (__bridge const void *)(cls));
+    if (!meta) {
+        meta = [[XZObjcClassDescriptor alloc] initWithClass:cls];
+        CFDictionarySetValue(meta.isMetaClass ? metaCache : classCache, (__bridge const void *)(cls), (__bridge const void *)(meta));
+    } else if (!meta->_isValid) {
+        [meta activateIfNeeded];
     }
     dispatch_semaphore_signal(lock);
-    if (!info) {
-        info = [[YYClassInfo alloc] initWithClass:cls];
-        if (info) {
-            dispatch_semaphore_wait(lock, DISPATCH_TIME_FOREVER);
-            CFDictionarySetValue(info.isMeta ? metaCache : classCache, (__bridge const void *)(cls), (__bridge const void *)(info));
-            dispatch_semaphore_signal(lock);
-        }
-    }
-    return info;
+    return meta;
 }
 
-+ (instancetype)classInfoWithClassName:(NSString *)className {
++ (instancetype)classDescriptorNamed:(NSString *)className {
     Class cls = NSClassFromString(className);
-    return [self classInfoWithClass:cls];
+    return [self descriptorForClass:cls];
 }
 
 @end

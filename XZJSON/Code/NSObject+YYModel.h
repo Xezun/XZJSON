@@ -13,33 +13,6 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-
-@class NSString;
-
-//@interface XZJSONEncoder : NSObject
-//@property (nonatomic, readonly, nullable) XZJSONEncoder *superCoder;
-//@property (nonatomic, nullable) NSMutableDictionary *dictionary;
-//@end
-//
-//@interface XZJSONDecoder : NSObject
-//@property (nonatomic, readonly, nullable) XZJSONDecoder *superCoder;
-//@property (nonatomic, readonly) NSDictionary *dictionary;
-//@end
-//
-//@protocol XZJSONEncoding <NSObject>
-//- (void)encodeWithJSONEncoder:(XZJSONEncoder *)coder;
-//@end
-//
-//@protocol XZJSONDecoding <NSObject>
-//- (nullable instancetype)initWithJSONDecoder:(XZJSONDecoder *)coder;
-//@end
-//
-//@interface XZJSONCoder : NSObject
-//+ (nullable NSData *)encodeObject:(nullable id)object;
-//+ (nullable id)decodeJSON:(nullable id)json forClass:(nullable Class)aClass;
-//@end
-
-
 /**
  Provide some data-model method:
  
@@ -52,44 +25,44 @@ NS_ASSUME_NONNULL_BEGIN
  
  Sample Code:
  @code
-     ********************** json convertor *********************
-     @interface YYAuthor : NSObject
-     @property (nonatomic, strong) NSString *name;
-     @property (nonatomic, assign) NSDate *birthday;
-     @end
-     @implementation YYAuthor
-     @end
- 
-     @interface YYBook : NSObject
-     @property (nonatomic, copy) NSString *name;
-     @property (nonatomic, assign) NSUInteger pages;
-     @property (nonatomic, strong) YYAuthor *author;
-     @end
-     @implementation YYBook
-     @end
-    
-     int main() {
-         // create model from json
-         YYBook *book = [YYBook yy_modelWithJSON:@"{\"name\": \"Harry Potter\", \"pages\": 256, \"author\": {\"name\": \"J.K.Rowling\", \"birthday\": \"1965-07-31\" }}"];
- 
-         // convert model to json
-         NSString *json = [book yy_modelToJSONString];
-         // {"author":{"name":"J.K.Rowling","birthday":"1965-07-31T00:00:00+0000"},"name":"Harry Potter","pages":256}
-     }
- 
-     ********************** Coding/Copying/hash/equal *********************
-     @interface YYShadow :NSObject <NSCoding, NSCopying>
-     @property (nonatomic, copy) NSString *name;
-     @property (nonatomic, assign) CGSize size;
-     @end
- 
-     @implementation YYShadow
-     - (void)encodeWithCoder:(NSCoder *)aCoder { [self yy_modelEncodeWithCoder:aCoder]; }
-     - (id)initWithCoder:(NSCoder *)aDecoder { self = [super init]; return [self yy_modelInitWithCoder:aDecoder]; }
-     - (id)copyWithZone:(NSZone *)zone { return [self yy_modelCopy]; }
-     - (NSUInteger)hash { return [self yy_modelHash]; }
-     - (BOOL)isEqual:(id)object { return [self yy_modelIsEqual:object]; }
-     @end
+ // ********************** json convertor *********************
+ @interface YYAuthor : NSObject
+ @property (nonatomic, strong) NSString *name;
+ @property (nonatomic, assign) NSDate *birthday;
+ @end
+ @implementation YYAuthor
+ @end
+
+ @interface YYBook : NSObject
+ @property (nonatomic, copy) NSString *name;
+ @property (nonatomic, assign) NSUInteger pages;
+ @property (nonatomic, strong) YYAuthor *author;
+ @end
+ @implementation YYBook
+ @end
+
+ int main() {
+     // create model from json
+     YYBook *book = [YYBook yy_modelWithJSON:@"{\"name\": \"Harry Potter\", \"pages\": 256, \"author\": {\"name\": \"J.K.Rowling\", \"birthday\": \"1965-07-31\" }}"];
+
+     // convert model to json
+     NSString *json = [book yy_modelToJSONString];
+     // {"author":{"name":"J.K.Rowling","birthday":"1965-07-31T00:00:00+0000"},"name":"Harry Potter","pages":256}
+ }
+
+ // ********************** Coding/Copying/hash/equal *********************
+ @interface YYShadow :NSObject <NSCoding, NSCopying>
+ @property (nonatomic, copy) NSString *name;
+ @property (nonatomic, assign) CGSize size;
+ @end
+
+ @implementation YYShadow
+ - (void)encodeWithCoder:(NSCoder *)aCoder { [self yy_modelEncodeWithCoder:aCoder]; }
+ - (id)initWithCoder:(NSCoder *)aDecoder { self = [super init]; return [self yy_modelInitWithCoder:aDecoder]; }
+ - (id)copyWithZone:(NSZone *)zone { return [self yy_modelCopy]; }
+ - (NSUInteger)hash { return [self yy_modelHash]; }
+ - (BOOL)isEqual:(id)object { return [self yy_modelIsEqual:object]; }
+ @end
  @endcode
  */
 @interface NSObject (YYModel)
