@@ -7,6 +7,8 @@
 
 #import <Foundation/Foundation.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 @protocol XZJSONDecoding <NSObject>
 /// 转发模型。
 + (nullable Class)forwardingClassForJSONDictionary:(NSDictionary *)JSON;
@@ -45,3 +47,17 @@
 /// - Parameter JSON: JSON 数据
 - (nullable instancetype)initWithJSONDictionary:(NSDictionary *)JSON;
 @end
+
+@protocol XZJSONEncoding <NSObject>
+/// 模型转JSON。
+/// ```objc
+/// - (nullable NSDictionary *)encodeIntoJSONDictionary {
+///     NSMutableDictionary *dictionary = [NSMutableDictionary dictionary];
+///     [XZJSONCoder object:self encodeIntoDictionary:dictionary];
+///     return dictionary;
+/// }
+/// ```
+- (nullable NSDictionary *)encodeIntoJSONDictionary;
+@end
+
+NS_ASSUME_NONNULL_END

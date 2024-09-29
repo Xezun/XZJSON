@@ -12,20 +12,28 @@
 NS_ASSUME_NONNULL_BEGIN
 
 @interface XZJSONCoder : NSObject
-+ (nullable id)decodeJSON:(nullable id)json forClass:(nullable Class)aClass options:(NSJSONReadingOptions)options;
-+ (nullable NSData *)encodeObject:(nullable id)object options:(NSJSONWritingOptions)options error:(NSError **)error;
+
+/// JSON转模型。
+/// - Parameters:
+///   - json: JSON
+///   - aClass: 模型类
+///   - options: 解析JSON的选项，如果已解析，则此参数忽略
++ (nullable id)decode:(nullable id)json options:(NSJSONReadingOptions)options class:(Class)aClass;
+
+/// 模型转JSON
+/// - Parameters:
+///   - object: 模型对象
+///   - options: 生成JSON选项
+///   - error: 错误输出
++ (nullable NSData *)encode:(nullable id)object options:(NSJSONWritingOptions)options error:(NSError **)error;
 
 + (void)object:(id)object decodeWithDictionary:(NSDictionary *)dictionary;
-+ (void)object:(id)object encodeIntoDictionary:(NSMutableDictionary *)dictionary;
++ (void)object:(id)object encodeIntoDictionary:(nullable NSMutableDictionary *)dictionary;
 @end
 
-@protocol XZJSONEncoding <NSObject>
-- (nullable NSDictionary *)encodeIntoJSONDictionary;
-@end
 
-@interface NSObject (XZJSON)
-- (void)xz_decodeWithDictionary:(NSDictionary *)JSON;
-- (void)xz_encodeIntoDictionary:(NSMutableDictionary *)dictionary;
+@interface XZJSONCoder (NSCoder)
+
 @end
 
 NS_ASSUME_NONNULL_END
