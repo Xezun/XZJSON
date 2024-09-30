@@ -28,16 +28,12 @@ NS_ASSUME_NONNULL_BEGIN
     /// Model class type.
     XZJSONEncodingNSType _nsType;
     
-    BOOL _hasCustomWillTransformFromDictionary;
-    BOOL _hasCustomTransformFromDictionary;
-    BOOL _hasCustomTransformToDictionary;
+    BOOL _supportsXZJSONDecoding;   ///< 是否自定义模型化过程
+    BOOL _forwardsDecodeForClass;   ///< 是否需要转发模型解析
+    BOOL _canEncodeFromDictionary;  ///< 是否校验数据
+    BOOL _usesDecodingInitializer;  ///< 是否使用初始化方法
     
-    BOOL _supportsXZJSONDecoding;
-    BOOL _forwardsDecodeForClass;   ///< 转发模型解析
-    BOOL _canEncodeFromDictionary;
-    BOOL _usesDecodingInitializer;
-    
-    BOOL _supportsXZJSONEncoding;
+    BOOL _supportsXZJSONEncoding;   ///< 是否自定义序列化过程
 }
 - (nullable instancetype)initWithClass:(Class)aClass NS_DESIGNATED_INITIALIZER;
 - (instancetype)init NS_UNAVAILABLE;

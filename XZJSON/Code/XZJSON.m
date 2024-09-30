@@ -6,7 +6,6 @@
 //
 
 #import "XZJSON.h"
-#import "NSObject+YYModel.h"
 #import "XZJSONClassDescriptor.h"
 #import "XZJSONPrivate.h"
 

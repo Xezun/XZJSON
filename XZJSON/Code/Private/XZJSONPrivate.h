@@ -8,11 +8,20 @@
 #import <Foundation/Foundation.h>
 #import <XZJSON/XZJSONClassDescriptor.h>
 #import <XZJSON/XZJSONPropertyDescriptor.h>
-
+#import <XZJSON/XZJSONDefines.h>
 @import ObjectiveC;
 
+NS_ASSUME_NONNULL_BEGIN
+@interface XZJSON (XZJSONPrivate)
+/// 模型化已序列化的 JSON 数据。
++ (nullable id)decodeObject:(nonnull id)object class:(Class)aClass;
+@end
+NS_ASSUME_NONNULL_END
+
 /// Parse a number value from 'id'.
-FOUNDATION_STATIC_INLINE NSNumber *XZJSONMakeNSNumber(__unsafe_unretained id value) {
+FOUNDATION_STATIC_INLINE NSNumber * _Nullable XZJSONMakeNSNumber(__unsafe_unretained id _Nullable value) {
+    if (!value || value == (id)kCFNull) return nil;
+    
     static NSCharacterSet *_numberDotCharacter;
     static NSDictionary   *_numberStrings;
     
@@ -47,7 +56,6 @@ FOUNDATION_STATIC_INLINE NSNumber *XZJSONMakeNSNumber(__unsafe_unretained id val
         };
     });
     
-    if (!value || value == (id)kCFNull) return nil;
     if ([value isKindOfClass:[NSNumber class]]) return value;
     if ([value isKindOfClass:[NSString class]]) {
         NSNumber *number = _numberStrings[value];
@@ -439,17 +447,9 @@ FOUNDATION_STATIC_INLINE void ModelSetValueForProperty(__unsafe_unretained id mo
                         if (valueArr) {
                             NSMutableArray *objectArr = [NSMutableArray new];
                             for (id one in valueArr) {
-                                if ([one isKindOfClass:meta->_elementClass]) {
-                                    [objectArr addObject:one];
-                                } else if ([one isKindOfClass:[NSDictionary class]]) {
-                                    Class cls = meta->_elementClass;
-                                    if (meta->_hasCustomClassFromDictionary) {
-                                        cls = [cls modelCustomClassForDictionary:one];
-                                        if (!cls) cls = meta->_elementClass; // for xcode code coverage
-                                    }
-                                    NSObject *newOne = [cls new];
-                                    [newOne yy_modelSetWithDictionary:one];
-                                    if (newOne) [objectArr addObject:newOne];
+                                id const model = [XZJSON decodeObject:one class:meta->_elementClass];
+                                if (model) {
+                                    [objectArr addObject:model];
                                 }
                             }
                             ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, objectArr);
@@ -481,15 +481,9 @@ FOUNDATION_STATIC_INLINE void ModelSetValueForProperty(__unsafe_unretained id mo
                         if (meta->_elementClass) {
                             NSMutableDictionary *dic = [NSMutableDictionary new];
                             [((NSDictionary *)value) enumerateKeysAndObjectsUsingBlock:^(NSString *oneKey, id oneValue, BOOL *stop) {
-                                if ([oneValue isKindOfClass:[NSDictionary class]]) {
-                                    Class cls = meta->_elementClass;
-                                    if (meta->_hasCustomClassFromDictionary) {
-                                        cls = [cls modelCustomClassForDictionary:oneValue];
-                                        if (!cls) cls = meta->_elementClass; // for xcode code coverage
-                                    }
-                                    NSObject *newOne = [cls new];
-                                    [newOne yy_modelSetWithDictionary:(id)oneValue];
-                                    if (newOne) dic[oneKey] = newOne;
+                                id const model = [XZJSON decodeObject:oneValue class:meta->_elementClass];
+                                if (model) {
+                                    dic[oneKey] = model;
                                 }
                             }];
                             ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, dic);
@@ -514,17 +508,9 @@ FOUNDATION_STATIC_INLINE void ModelSetValueForProperty(__unsafe_unretained id mo
                     if (meta->_elementClass) {
                         NSMutableSet *set = [NSMutableSet new];
                         for (id one in valueSet) {
-                            if ([one isKindOfClass:meta->_elementClass]) {
-                                [set addObject:one];
-                            } else if ([one isKindOfClass:[NSDictionary class]]) {
-                                Class cls = meta->_elementClass;
-                                if (meta->_hasCustomClassFromDictionary) {
-                                    cls = [cls modelCustomClassForDictionary:one];
-                                    if (!cls) cls = meta->_elementClass; // for xcode code coverage
-                                }
-                                NSObject *newOne = [cls new];
-                                [newOne yy_modelSetWithDictionary:one];
-                                if (newOne) [set addObject:newOne];
+                            id const model = [XZJSON decodeObject:one class:meta->_elementClass];
+                            if (model) {
+                                [set addObject:model];
                             }
                         }
                         ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, set);
@@ -556,15 +542,10 @@ FOUNDATION_STATIC_INLINE void ModelSetValueForProperty(__unsafe_unretained id mo
                         one = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, meta->_getter);
                     }
                     if (one) {
-                        [one yy_modelSetWithDictionary:value];
+                        [XZJSON object:one decodeWithDictionary:value];
                     } else {
-                        Class cls = meta->_cls;
-                        if (meta->_hasCustomClassFromDictionary) {
-                            cls = [cls modelCustomClassForDictionary:value];
-                            if (!cls) cls = meta->_elementClass; // for xcode code coverage
-                        }
-                        one = [cls new];
-                        [one yy_modelSetWithDictionary:value];
+                        one = [XZJSON decodeObject:value class:meta->_cls];
+                        // if one == nil ?
                         ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, (id)one);
                     }
                 }
@@ -877,10 +858,10 @@ FOUNDATION_STATIC_INLINE id XZJSONEncodingRecursive(NSObject *model) {
         }
     }];
     
-    if (modelMeta->_hasCustomTransformToDictionary) {
-        BOOL suc = [((id<YYModel>)model) modelCustomTransformToDictionary:dic];
-        if (!suc) return nil;
-    }
+//    if (modelMeta->_hasCustomTransformToDictionary) {
+//        BOOL suc = [((id<YYModel>)model) modelCustomTransformToDictionary:dic];
+//        if (!suc) return nil;
+//    }
     return result;
 }
 

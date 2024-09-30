@@ -6,7 +6,6 @@
 //
 
 #import "XZJSONClassDescriptor.h"
-#import "NSObject+YYModel.h"
 #import "XZJSONPropertyDescriptor.h"
 #import "XZJSONDefines.h"
 
@@ -22,12 +21,10 @@
         return nil;
     }
     
-    
-    
     // Get black list
     NSSet *blacklist = nil;
-    if ([aClass respondsToSelector:@selector(modelPropertyBlacklist)]) {
-        NSArray *properties = [(id<YYModel>)aClass modelPropertyBlacklist];
+    if ([aClass respondsToSelector:@selector(blockedJSONCodingKeys)]) {
+        NSArray *properties = [aClass blockedJSONCodingKeys];
         if (properties) {
             blacklist = [NSSet setWithArray:properties];
         }
@@ -35,8 +32,8 @@
     
     // Get white list
     NSSet *whitelist = nil;
-    if ([aClass respondsToSelector:@selector(modelPropertyWhitelist)]) {
-        NSArray *properties = [(id<YYModel>)aClass modelPropertyWhitelist];
+    if ([aClass respondsToSelector:@selector(allowedJSONCodingKeys)]) {
+        NSArray *properties = [aClass allowedJSONCodingKeys];
         if (properties) {
             whitelist = [NSSet setWithArray:properties];
         }
@@ -46,8 +43,8 @@
     
     // Get container property's generic class
     NSDictionary *genericMapper = nil;
-    if ([aClass respondsToSelector:@selector(modelContainerPropertyGenericClass)]) {
-        genericMapper = [(id<YYModel>)aClass modelContainerPropertyGenericClass];
+    if ([aClass respondsToSelector:@selector(mappingJSONCodingClasses)]) {
+        genericMapper = [aClass mappingJSONCodingClasses];
         if (genericMapper) {
             NSMutableDictionary *tmp = [NSMutableDictionary new];
             [genericMapper enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
@@ -92,8 +89,8 @@
     NSMutableArray *keyPathPropertyMetas = [NSMutableArray new];
     NSMutableArray *multiKeysPropertyMetas = [NSMutableArray new];
     
-    if ([aClass respondsToSelector:@selector(modelCustomPropertyMapper)]) {
-        NSDictionary *customMapper = [(id <YYModel>)aClass modelCustomPropertyMapper];
+    if ([aClass respondsToSelector:@selector(mappingJSONCodingKeys)]) {
+        NSDictionary *customMapper = [aClass mappingJSONCodingKeys];
         [customMapper enumerateKeysAndObjectsUsingBlock:^(NSString *propertyName, NSString *mappedToKey, BOOL *stop) {
             XZJSONPropertyDescriptor *propertyMeta = allPropertyMetas[propertyName];
             if (!propertyMeta) return;
@@ -162,14 +159,13 @@
     _objcDescriptor = objcDescriptor;
     _keyMappedCount = _allPropertyMetas.count;
     _nsType = XZJSONEncodingNSTypeFromClass(aClass);
-    _hasCustomWillTransformFromDictionary = ([aClass instancesRespondToSelector:@selector(modelCustomWillTransformFromDictionary:)]);
-    _hasCustomTransformFromDictionary     = ([aClass instancesRespondToSelector:@selector(modelCustomTransformFromDictionary:)]);
-    _hasCustomTransformToDictionary       = ([aClass instancesRespondToSelector:@selector(modelCustomTransformToDictionary:)]);
     
     _supportsXZJSONDecoding = [aClass conformsToProtocol:@protocol(XZJSONDecoding)];
     _forwardsDecodeForClass = (_supportsXZJSONDecoding && [aClass respondsToSelector:@selector(forwardingClassForJSONDictionary:)]);
+    _canEncodeFromDictionary = (_supportsXZJSONDecoding && [aClass respondsToSelector:@selector(canDecodeFromJSONDictionary:)]);
+    _usesDecodingInitializer = (_supportsXZJSONDecoding && [aClass instancesRespondToSelector:@selector(initWithJSONDictionary:)]);
     
-    _supportsXZJSONEncoding = [aClass conformsToProtocol:@protocol(XZJSONDecoding)];
+    _supportsXZJSONEncoding = [aClass conformsToProtocol:@protocol(XZJSONDecoding)] && [aClass instancesRespondToSelector:@selector(encodeIntoJSONDictionary:)];
     
     return self;
 }

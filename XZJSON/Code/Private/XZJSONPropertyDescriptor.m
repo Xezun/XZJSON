@@ -6,7 +6,7 @@
 //
 
 #import "XZJSONPropertyDescriptor.h"
-#import "NSObject+YYModel.h"
+#import "XZJSONDefines.h"
 
 @implementation XZJSONPropertyDescriptor
 
@@ -64,9 +64,9 @@
     descriptor->_cls = aProperty.cls;
     
     if (elementClass) {
-        descriptor->_hasCustomClassFromDictionary = [elementClass respondsToSelector:@selector(modelCustomClassForDictionary:)];
+        descriptor->_hasCustomClassFromDictionary = [elementClass respondsToSelector:@selector(forwardingClassForJSONDictionary:)];
     } else if (descriptor->_cls && descriptor->_nsType == XZJSONEncodingUnknown) {
-        descriptor->_hasCustomClassFromDictionary = [descriptor->_cls respondsToSelector:@selector(modelCustomClassForDictionary:)];
+        descriptor->_hasCustomClassFromDictionary = [descriptor->_cls respondsToSelector:@selector(forwardingClassForJSONDictionary:)];
     }
     
     if (aProperty.getter) {
