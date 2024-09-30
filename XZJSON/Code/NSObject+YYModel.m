@@ -227,7 +227,7 @@
         if (!propertyMeta->_getter) return;
         
         if (propertyMeta->_isCNumber) {
-            NSNumber *value = ModelCreateNumberFromProperty(self, propertyMeta);
+            NSNumber *value = XZJSONEncodeNumberForProperty(self, propertyMeta);
             if (value) [aCoder encodeObject:value forKey:propertyMeta->_name];
         } else {
             switch (propertyMeta->_type & XZObjcTypeMask) {

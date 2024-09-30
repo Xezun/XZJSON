@@ -32,7 +32,7 @@ NS_ASSUME_NONNULL_BEGIN
      property->keys:      _mappedToKey:keys[0] _mappedToKeyPath:nil/keyPath    _mappedToKeyArray:keys(array)
      */
     NSString *_mappedToKey;      ///< the key mapped to
-    NSArray *_mappedToKeyPath;   ///< the key path mapped to (nil if the name is not key path)
+    NSArray<NSString *> *_mappedToKeyPath;   ///< the key path mapped to (nil if the name is not key path)
     NSArray *_mappedToKeyArray;  ///< the key(NSString) or keyPath(NSArray) array (nil if not mapped to multiple keys)
     XZObjcPropertyDescriptor *_objcDescriptor;  ///< property's info
     XZJSONPropertyDescriptor *_next; ///< next meta if there are multiple properties mapped to the same key.

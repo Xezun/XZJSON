@@ -45,6 +45,7 @@
     return [self decodeObject:json class:aClass];
 }
 
+/// 序列化原始 JOSN 数据。
 + (nullable id)decodeData:(nonnull NSData *)data options:(NSJSONReadingOptions)options class:(Class)aClass {
     NSError *error = nil;
     id const object = [NSJSONSerialization JSONObjectWithData:data options:options error:&error];
@@ -54,6 +55,7 @@
     return nil;
 }
 
+/// 模型化已序列化的 JSON 数据。
 + (nullable id)decodeObject:(nonnull id)object class:(Class)aClass {
     if (object == NSNull.null) {
         return nil;
@@ -115,7 +117,7 @@
         return nil;
     }
     
-    id const JSONObject = [self encodeObject:object];
+    id const JSONObject = [self encodeObject:object dictionary:nil];
     
     if (JSONObject == nil) {
         return nil;
@@ -124,46 +126,65 @@
     return [NSJSONSerialization dataWithJSONObject:JSONObject options:options error:error];
 }
 
-/// 返回 JSONObject
-+ (id)encodeObject:(id)object {
-    if (object == NSNull.null) {
-        return object;
-    }
-    if ([object isKindOfClass:NSArray.class]) {
-        NSArray * const array = object;
-        if (array.count == 0) {
-            return array;
-        }
-        NSMutableArray * const arrayM = [NSMutableArray arrayWithCapacity:array.count];
-        for (id item in object) {
-            id obj = [self encodeObject:item];
-            if (obj) {
-                [arrayM addObject:obj];
-            }
-        }
-        return arrayM;
-    }
-    if ([object isKindOfClass:NSDictionary.class]) {
-        NSDictionary * const dict = object;
-        if (dict.count == 0) {
-            return dict;
-        }
-        NSMutableDictionary * const dictM = [NSMutableDictionary dictionaryWithCapacity:dict.count];
-        [dict enumerateKeysAndObjectsUsingBlock:^(id key, id  _Nonnull obj, BOOL * _Nonnull stop) {
-            key = [NSString stringWithFormat:@"%@", key];
-            obj = [self encodeObject:obj];
-            if (obj != nil) {
-                dictM[key] = obj;
+/// 将 原生或自定义的数据实例对象 模型化为 JSON基础数据类型。
++ (id)encodeObject:(id)model dictionary:(nullable NSMutableDictionary *)dictionary {
+    // === 原生数据 ===
+    
+    if (!model || model == (id)kCFNull) return model;
+    if ([model isKindOfClass:[NSString class]]) return model;
+    if ([model isKindOfClass:[NSNumber class]]) return model;
+    if ([model isKindOfClass:[NSDictionary class]]) {
+        NSDictionary * const dict = model;
+        if ([NSJSONSerialization isValidJSONObject:dict]) return dict;
+        NSMutableDictionary *dictM = [NSMutableDictionary dictionaryWithCapacity:dict.count];
+        [dict enumerateKeysAndObjectsUsingBlock:^(NSString *key, id obj, BOOL *stop) {
+            NSString * const stringKey = [key isKindOfClass:[NSString class]] ? key : key.description;
+            if (!stringKey) return;
+            id const jsonObj = [self encodeObject:obj dictionary:nil];
+            if (jsonObj != nil) {
+                dictM[stringKey] = jsonObj;
             }
         }];
         return dictM;
     }
-    // TODO: - opt
-    if ([object conformsToProtocol:@protocol(XZJSONEncoding)]) {
-        return [(id<XZJSONEncoding>)object encodeIntoJSONDictionary];
+    if ([model isKindOfClass:[NSSet class]]) {
+        NSSet * const set = model;
+        model = set.allObjects;
+        // fall in next NSArray
     }
-    NSMutableDictionary *dictionary = [NSMutableDictionary dictionary];
-    [self object:object encodeIntoDictionary:dictionary];
+    if ([model isKindOfClass:[NSArray class]]) {
+        NSArray * const array = model;
+        if ([NSJSONSerialization isValidJSONObject:array]) return array;
+        NSMutableArray *newArray = [NSMutableArray arrayWithCapacity:array.count];
+        for (id obj in (NSArray *)model) {
+            id const jsonObj = [self encodeObject:obj dictionary:nil];
+            if (jsonObj != nil) {
+                [newArray addObject:jsonObj];
+            }
+        }
+        return newArray;
+    }
+    if ([model isKindOfClass:[NSURL class]]) return ((NSURL *)model).absoluteString;
+    if ([model isKindOfClass:[NSAttributedString class]]) return ((NSAttributedString *)model).string;
+    // TODO: DateFormatter
+    if ([model isKindOfClass:[NSDate class]]) return [YYISODateFormatter() stringFromDate:(id)model];
+    if ([model isKindOfClass:[NSData class]]) return nil;
+    
+    // === 数据模型 ===
+    
+    XZJSONClassDescriptor *descriptor = [XZJSONClassDescriptor descriptorForClass:[model class]];
+    if (dictionary == nil) {
+        dictionary = [NSMutableDictionary dictionaryWithCapacity:descriptor->_keyMappedCount];
+    }
+    
+    // 自定义解析
+    if (descriptor->_supportsXZJSONEncoding) {
+        return [(id<XZJSONEncoding>)model encodeIntoJSONDictionary:dictionary];
+    }
+    
+    // 通用解析
+    [self object:model encodeIntoDictionary:dictionary descriptor:descriptor];
+    
     return dictionary;
 }
 
@@ -206,7 +227,85 @@
 }
 
 + (void)object:(id)object encodeIntoDictionary:(NSMutableDictionary *)dictionary {
-    XZJSONEncodingRecursive(object);
+    XZJSONClassDescriptor * const descriptor = [XZJSONClassDescriptor descriptorForClass:[object class]];
+    [self object:object encodeIntoDictionary:dictionary descriptor:descriptor];
+}
+
++ (void)object:(id)model encodeIntoDictionary:(NSMutableDictionary *)dictionary descriptor:(XZJSONClassDescriptor *)descriptor {
+    if (!descriptor || descriptor->_keyMappedCount == 0) return;
+    
+    __unsafe_unretained NSMutableDictionary *dic = dictionary; // avoid retain and release in block
+    [descriptor->_mapper enumerateKeysAndObjectsUsingBlock:^(NSString *propertyMappedKey, XZJSONPropertyDescriptor *propertyMeta, BOOL *stop) {
+        if (!propertyMeta->_getter) return;
+        NSMutableDictionary *dict = dictionary;
+        
+        NSString *key = nil;
+        if (propertyMeta->_mappedToKeyPath) {
+            for (NSInteger i = 0, max = propertyMeta->_mappedToKeyPath.count - 1; i <= max; i++) {
+                if (![dict isKindOfClass:NSMutableDictionary.class]) {
+                    return; // 对应的 key 已经有其它值，不支持设置 keyPath
+                }
+                NSString * const subKey = propertyMeta->_mappedToKeyPath[i];
+                key = subKey;
+                if (i == max) {
+                    break; // 最后一个
+                }
+                NSMutableDictionary * subDict = dict[subKey];
+                if (subDict == nil) {
+                    subDict = [NSMutableDictionary dictionary];
+                    dict[subKey] = subDict;
+                }
+                dict = subDict;
+            }
+        } else if (!dic[propertyMeta->_mappedToKey]) {
+            key = propertyMeta->_mappedToKey;
+        } else {
+            return;
+        }
+        
+        id value = nil;
+        if (propertyMeta->_isCNumber) {
+            // 标量数字
+            value = XZJSONEncodeNumberForProperty(model, propertyMeta);
+        } else if (propertyMeta->_nsType) {
+            // 原生类型
+            id const nsValue = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
+            if (nsValue) {
+                value = [self encodeObject:nsValue dictionary:nil];
+            }
+        } else {
+            // 模型
+            switch (propertyMeta->_type & XZObjcTypeMask) {
+                case XZObjcTypeObject: {
+                    id const csValue = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
+                    if (csValue) {
+                        // 如果 key 已经有值，则进行合并，不能合并则覆盖
+                        NSMutableDictionary *subDict = dict[key];
+                        if (![subDict isKindOfClass:NSMutableDictionary.class]) {
+                            subDict = [NSMutableDictionary dictionary];
+                        }
+                        value = [self encodeObject:csValue dictionary:subDict];
+                    }
+                    break;
+                }
+                case XZObjcTypeClass: {
+                    Class v = ((Class (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
+                    value = v ? NSStringFromClass(v) : nil;
+                    break;
+                }
+                case XZObjcTypeSEL: {
+                    SEL v = ((SEL (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
+                    value = v ? NSStringFromSelector(v) : nil;
+                    break;
+                }
+                default: {
+                    break;
+                }
+            }
+        }
+       
+        dict[key] = value ?: (id)kCFNull;
+    }];
 }
 
 @end
@@ -233,7 +332,7 @@
         if (!propertyMeta->_getter) return;
         
         if (propertyMeta->_isCNumber) {
-            NSNumber *value = ModelCreateNumberFromProperty(object, propertyMeta);
+            NSNumber *value = XZJSONEncodeNumberForProperty(object, propertyMeta);
             if (value) [aCoder encodeObject:value forKey:propertyMeta->_name];
         } else {
             switch (propertyMeta->_type & XZObjcTypeMask) {

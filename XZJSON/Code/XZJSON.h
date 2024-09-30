@@ -11,24 +11,35 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface XZJSON : NSObject
+/// 支持 模型 与 JSON 互相转换的工具。
+XZ_JSON_STATIC_CLASS @interface XZJSON : NSObject
 
-/// JSON转模型。
+/// 模型化 JSON 数据。
 /// - Parameters:
 ///   - json: JSON
 ///   - aClass: 模型类
 ///   - options: 解析JSON的选项，如果已解析，则此参数忽略
 + (nullable id)decode:(nullable id)json options:(NSJSONReadingOptions)options class:(Class)aClass;
 
-/// 模型转JSON
+/// JSON 化实例模型。
 /// - Parameters:
 ///   - object: 模型对象
-///   - options: 生成JSON选项
+///   - options: JSON生成选项
 ///   - error: 错误输出
 + (nullable NSData *)encode:(nullable id)object options:(NSJSONWritingOptions)options error:(NSError **)error;
 
+/// 使用 dictionary 对模型实例 object 进行模型化。
+/// - Parameters:
+///   - object: 模型实例对象
+///   - dictionary: 数据字典
 + (void)object:(id)object decodeWithDictionary:(NSDictionary *)dictionary;
-+ (void)object:(id)object encodeIntoDictionary:(nullable NSMutableDictionary *)dictionary;
+
+/// 将模型实例 object 序列化为 dictionary 的键值。
+/// - Parameters:
+///   - object: 模型实例对象
+///   - dictionary: 数据字典
++ (void)object:(id)object encodeIntoDictionary:(NSMutableDictionary *)dictionary;
+
 @end
 
 

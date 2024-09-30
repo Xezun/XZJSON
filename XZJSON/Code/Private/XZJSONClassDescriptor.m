@@ -163,8 +163,8 @@
     _keyMappedCount = _allPropertyMetas.count;
     _nsType = XZJSONEncodingNSTypeFromClass(aClass);
     _hasCustomWillTransformFromDictionary = ([aClass instancesRespondToSelector:@selector(modelCustomWillTransformFromDictionary:)]);
-    _hasCustomTransformFromDictionary = ([aClass instancesRespondToSelector:@selector(modelCustomTransformFromDictionary:)]);
-    _hasCustomTransformToDictionary = ([aClass instancesRespondToSelector:@selector(modelCustomTransformToDictionary:)]);
+    _hasCustomTransformFromDictionary     = ([aClass instancesRespondToSelector:@selector(modelCustomTransformFromDictionary:)]);
+    _hasCustomTransformToDictionary       = ([aClass instancesRespondToSelector:@selector(modelCustomTransformToDictionary:)]);
     
     _supportsXZJSONDecoding = [aClass conformsToProtocol:@protocol(XZJSONDecoding)];
     _forwardsDecodeForClass = (_supportsXZJSONDecoding && [aClass respondsToSelector:@selector(forwardingClassForJSONDictionary:)]);

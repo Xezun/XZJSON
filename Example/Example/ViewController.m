@@ -17,6 +17,10 @@
 }
 - (void)encodeRestorableStateWithCoder:(NSCoder *)coder {
     [super encodeRestorableStateWithCoder:coder];
+    
+    id obj;
+    [obj isGamutMappingEnabled];
+    
 }
 
 @end

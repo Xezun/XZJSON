@@ -202,7 +202,7 @@ FOUNDATION_STATIC_INLINE Class YYNSBlockClass(void) {
  @param meta  Should not be nil, meta.isCNumber should be YES, meta.getter should not be nil.
  @return A number object, or nil if failed.
  */
-FOUNDATION_STATIC_INLINE NSNumber *ModelCreateNumberFromProperty(__unsafe_unretained id model, __unsafe_unretained XZJSONPropertyDescriptor *meta) {
+FOUNDATION_STATIC_INLINE NSNumber *XZJSONEncodeNumberForProperty(__unsafe_unretained id model, __unsafe_unretained XZJSONPropertyDescriptor *meta) {
     switch (meta->_type & XZObjcTypeMask) {
         case XZObjcTypeBool: {
             return @(((bool (*)(id, SEL))(void *) objc_msgSend)((id)model, meta->_getter));
@@ -821,7 +821,7 @@ FOUNDATION_STATIC_INLINE id XZJSONEncodingRecursive(NSObject *model) {
         
         id value = nil;
         if (propertyMeta->_isCNumber) {
-            value = ModelCreateNumberFromProperty(model, propertyMeta);
+            value = XZJSONEncodeNumberForProperty(model, propertyMeta);
         } else if (propertyMeta->_nsType) {
             id v = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
             value = XZJSONEncodingRecursive(v);
@@ -988,7 +988,7 @@ static NSString *ModelDescription(NSObject *model) {
                 XZJSONPropertyDescriptor *property = properties[i];
                 NSString *propertyDesc;
                 if (property->_isCNumber) {
-                    NSNumber *num = ModelCreateNumberFromProperty(model, property);
+                    NSNumber *num = XZJSONEncodeNumberForProperty(model, property);
                     propertyDesc = num.stringValue;
                 } else {
                     switch (property->_type & XZObjcTypeMask) {
