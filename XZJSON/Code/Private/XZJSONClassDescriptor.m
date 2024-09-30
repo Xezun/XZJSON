@@ -39,8 +39,6 @@
         }
     }
     
-    
-    
     // Get container property's generic class
     NSDictionary *genericMapper = nil;
     if ([aClass respondsToSelector:@selector(mappingJSONCodingClasses)]) {
@@ -49,15 +47,10 @@
             NSMutableDictionary *tmp = [NSMutableDictionary new];
             [genericMapper enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
                 if (![key isKindOfClass:[NSString class]]) return;
-                Class meta = object_getClass(obj);
-                if (!meta) return;
-                if (class_isMetaClass(meta)) {
+                if (object_isClass(obj)) {
                     tmp[key] = obj;
                 } else if ([obj isKindOfClass:[NSString class]]) {
-                    Class cls = NSClassFromString(obj);
-                    if (cls) {
-                        tmp[key] = cls;
-                    }
+                    tmp[key] = NSClassFromString(obj);
                 }
             }];
             genericMapper = tmp;
@@ -72,9 +65,7 @@
             if (!propertyInfo.name) continue;
             if (blacklist && [blacklist containsObject:propertyInfo.name]) continue;
             if (whitelist && ![whitelist containsObject:propertyInfo.name]) continue;
-            XZJSONPropertyDescriptor *meta = [XZJSONPropertyDescriptor descriptorWithClass:objcDescriptor
-                                                                    property:propertyInfo
-                                                                         elementClass:genericMapper[propertyInfo.name]];
+            XZJSONPropertyDescriptor *meta = [XZJSONPropertyDescriptor descriptorWithClass:objcDescriptor property:propertyInfo elementClass:genericMapper[propertyInfo.name]];
             if (!meta || !meta->_name) continue;
             if (!meta->_getter || !meta->_setter) continue;
             if (allPropertyMetas[meta->_name]) continue;

@@ -61,22 +61,22 @@
             descriptor->_isStructAvailableForKeyedArchiver = YES;
         }
     }
-    descriptor->_cls = aProperty.cls;
+    descriptor->_class = aProperty.cls;
     
     if (elementClass) {
         descriptor->_hasCustomClassFromDictionary = [elementClass respondsToSelector:@selector(forwardingClassForJSONDictionary:)];
-    } else if (descriptor->_cls && descriptor->_nsType == XZJSONEncodingUnknown) {
-        descriptor->_hasCustomClassFromDictionary = [descriptor->_cls respondsToSelector:@selector(forwardingClassForJSONDictionary:)];
+    } else if (descriptor->_class && descriptor->_nsType == XZJSONEncodingUnknown) {
+        descriptor->_hasCustomClassFromDictionary = [descriptor->_class respondsToSelector:@selector(forwardingClassForJSONDictionary:)];
     }
     
     if (aProperty.getter) {
-        if ([aClass.origin instancesRespondToSelector:aProperty.getter]) {
+        if ([aClass.identity instancesRespondToSelector:aProperty.getter]) {
             descriptor->_getter = aProperty.getter;
         }
     }
     
     if (aProperty.setter) {
-        if ([aClass.origin instancesRespondToSelector:aProperty.setter]) {
+        if ([aClass.identity instancesRespondToSelector:aProperty.setter]) {
             descriptor->_setter = aProperty.setter;
         }
     }

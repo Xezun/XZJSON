@@ -95,7 +95,7 @@ XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding) {
 - (instancetype)initWithIvar:(Ivar)ivar {
     if (!ivar) return nil;
     self = [super init];
-    _origin = ivar;
+    _identity = ivar;
     const char *name = ivar_getName(ivar);
     if (name) {
         _name = [NSString stringWithUTF8String:name];
@@ -117,7 +117,7 @@ XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding) {
 - (instancetype)initWithMethod:(Method)method {
     if (!method) return nil;
     self = [super init];
-    _origin = method;
+    _identity = method;
     _sel = method_getName(method);
     _imp = method_getImplementation(method);
     const char *name = sel_getName(_sel);
@@ -154,7 +154,7 @@ XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding) {
 - (instancetype)initWithProperty:(objc_property_t)property {
     if (!property) return nil;
     self = [super init];
-    _origin = property;
+    _identity = property;
     const char *name = property_getName(property);
     if (name) {
         _name = [NSString stringWithUTF8String:name];
@@ -260,7 +260,7 @@ XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding) {
     self = [super init];
     if (self) {
         _isValid = NO;
-        _origin = cls;
+        _identity = cls;
         _originSuperClass = class_getSuperclass(cls);
         _isMetaClass = class_isMetaClass(cls);
         if (!_isMetaClass) {
@@ -283,7 +283,7 @@ XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding) {
     _methods = nil;
     _properties = nil;
     
-    Class cls = self.origin;
+    Class cls = self.identity;
     unsigned int methodCount = 0;
     Method *methods = class_copyMethodList(cls, &methodCount);
     if (methods) {

@@ -534,7 +534,7 @@ FOUNDATION_STATIC_INLINE void ModelSetValueForProperty(__unsafe_unretained id mo
             case XZObjcTypeObject: {
                 if (isNull) {
                     ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, (id)nil);
-                } else if ([value isKindOfClass:meta->_cls] || !meta->_cls) {
+                } else if ([value isKindOfClass:meta->_class] || !meta->_class) {
                     ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, (id)value);
                 } else if ([value isKindOfClass:[NSDictionary class]]) {
                     NSObject *one = nil;
@@ -544,7 +544,7 @@ FOUNDATION_STATIC_INLINE void ModelSetValueForProperty(__unsafe_unretained id mo
                     if (one) {
                         [XZJSON object:one decodeWithDictionary:value];
                     } else {
-                        one = [XZJSON decodeObject:value class:meta->_cls];
+                        one = [XZJSON decodeObject:value class:meta->_class];
                         // if one == nil ?
                         ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, (id)one);
                     }

@@ -80,7 +80,7 @@ FOUNDATION_EXPORT XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding);
 ///
 /// Instance variable information.
 @interface XZObjcIvarDescriptor : NSObject
-@property (nonatomic, assign, readonly) Ivar origin;            ///< ivar opaque struct
+@property (nonatomic, assign, readonly) Ivar identity;          ///< ivar opaque struct
 @property (nonatomic, strong, readonly) NSString *name;         ///< Ivar's name
 @property (nonatomic, assign, readonly) ptrdiff_t offset;       ///< Ivar's offset
 @property (nonatomic, strong, readonly) NSString *typeEncoding; ///< Ivar's type encoding
@@ -99,7 +99,7 @@ FOUNDATION_EXPORT XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding);
 ///
 /// Method information.
 @interface XZObjcMethodDescriptor : NSObject
-@property (nonatomic, assign, readonly) Method origin;                  ///< method opaque struct
+@property (nonatomic, assign, readonly) Method identity;                ///< method opaque struct
 @property (nonatomic, strong, readonly) NSString *name;                 ///< method name
 @property (nonatomic, assign, readonly) SEL sel;                        ///< method's selector
 @property (nonatomic, assign, readonly) IMP imp;                        ///< method's implementation
@@ -122,9 +122,9 @@ FOUNDATION_EXPORT XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding);
 ///
 /// Property information.
 @interface XZObjcPropertyDescriptor : NSObject
-@property (nonatomic, assign, readonly) objc_property_t origin;   ///< property's opaque struct
+@property (nonatomic, assign, readonly) objc_property_t identity; ///< property's opaque struct
 @property (nonatomic, strong, readonly) NSString *name;           ///< property's name
-@property (nonatomic, assign, readonly) XZObjcType type;      ///< property's type
+@property (nonatomic, assign, readonly) XZObjcType type;          ///< property's type
 @property (nonatomic, strong, readonly) NSString *typeEncoding;   ///< property's encoding value
 @property (nonatomic, strong, readonly) NSString *ivarName;       ///< property's ivar name
 @property (nullable, nonatomic, assign, readonly) Class cls;      ///< may be nil
@@ -145,7 +145,7 @@ FOUNDATION_EXPORT XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding);
 /// Class information for a class.
 @interface XZObjcClassDescriptor : NSObject
 
-@property (nonatomic, assign, readonly) Class origin;                       ///< class object
+@property (nonatomic, assign, readonly) Class identity;                     ///< class object
 @property (nullable, nonatomic, assign, readonly) Class originSuperClass;   ///< super class object
 @property (nullable, nonatomic, assign, readonly) Class originMetaClass;    ///< class's meta class object
 
