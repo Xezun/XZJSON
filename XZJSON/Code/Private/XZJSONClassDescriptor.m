@@ -60,7 +60,7 @@
     // Create all property metas.
     NSMutableDictionary *allPropertyMetas = [NSMutableDictionary new];
     XZObjcClassDescriptor *curClassInfo = objcDescriptor;
-    while (curClassInfo && curClassInfo.originSuperClass != nil) { // recursive parse super class, but ignore root class (NSObject/NSProxy)
+    while (curClassInfo && curClassInfo.identitySuper != nil) { // recursive parse super class, but ignore root class (NSObject/NSProxy)
         for (XZObjcPropertyDescriptor *propertyInfo in curClassInfo.properties.allValues) {
             if (!propertyInfo.name) continue;
             if (blacklist && [blacklist containsObject:propertyInfo.name]) continue;
@@ -71,7 +71,7 @@
             if (allPropertyMetas[meta->_name]) continue;
             allPropertyMetas[meta->_name] = meta;
         }
-        curClassInfo = curClassInfo.superClassDescriptor;
+        curClassInfo = curClassInfo.superDescriptor;
     }
     if (allPropertyMetas.count) _allPropertyMetas = allPropertyMetas.allValues.copy;
     

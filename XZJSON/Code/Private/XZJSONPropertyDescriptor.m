@@ -30,7 +30,7 @@
     descriptor->_elementClass   = elementClass;
     
     if ((descriptor->_type & XZObjcTypeMask) == XZObjcTypeObject) {
-        descriptor->_nsType = XZJSONEncodingNSTypeFromClass(aProperty.cls);
+        descriptor->_nsType = XZJSONEncodingNSTypeFromClass(aProperty.subtype);
     } else {
         descriptor->_isCNumber = XZObjcTypeIsCNumber(descriptor->_type);
     }
@@ -61,7 +61,7 @@
             descriptor->_isStructAvailableForKeyedArchiver = YES;
         }
     }
-    descriptor->_class = aProperty.cls;
+    descriptor->_class = aProperty.subtype;
     
     if (elementClass) {
         descriptor->_hasCustomClassFromDictionary = [elementClass respondsToSelector:@selector(forwardingClassForJSONDictionary:)];

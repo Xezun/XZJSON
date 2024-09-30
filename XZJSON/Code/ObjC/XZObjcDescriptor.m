@@ -93,20 +93,28 @@ XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding) {
 @implementation XZObjcIvarDescriptor
 
 - (instancetype)initWithIvar:(Ivar)ivar {
-    if (!ivar) return nil;
-    self = [super init];
-    _identity = ivar;
-    const char *name = ivar_getName(ivar);
-    if (name) {
-        _name = [NSString stringWithUTF8String:name];
-    }
-    _offset = ivar_getOffset(ivar);
-    const char *typeEncoding = ivar_getTypeEncoding(ivar);
-    if (typeEncoding) {
-        _typeEncoding = [NSString stringWithUTF8String:typeEncoding];
-        _type = XZObjcTypeFromEncoding(typeEncoding);
+    if (ivar == nil) {
+        return nil;
     }
     
+    const char * const name = ivar_getName(ivar);
+    if (name == nil) {
+        return nil;
+    }
+    
+    const char * const typeEncoding = ivar_getTypeEncoding(ivar);
+    if (typeEncoding == nil) {
+        return nil;
+    }
+    
+    self = [super init];
+    if (self) {
+        _identity     = ivar;
+        _name         = [NSString stringWithUTF8String:name];
+        _offset       = ivar_getOffset(ivar);
+        _typeEncoding = [NSString stringWithUTF8String:typeEncoding];
+        _type         = XZObjcTypeFromEncoding(typeEncoding);
+    }
     return self;
 }
 
@@ -115,34 +123,45 @@ XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding) {
 @implementation XZObjcMethodDescriptor
 
 - (instancetype)initWithMethod:(Method)method {
-    if (!method) return nil;
+    if (method == nil) {
+        return nil;
+    }
+    
+    const char * const name = sel_getName(_sel);
+    if (name == nil) {
+        return nil;
+    }
+    
+    const char * const typeEncoding = method_getTypeEncoding(method);
+    if (typeEncoding == nil) {
+        return nil;
+    }
+    
     self = [super init];
-    _identity = method;
-    _sel = method_getName(method);
-    _imp = method_getImplementation(method);
-    const char *name = sel_getName(_sel);
-    if (name) {
-        _name = [NSString stringWithUTF8String:name];
-    }
-    const char *typeEncoding = method_getTypeEncoding(method);
-    if (typeEncoding) {
+    if (self) {
+        _identity   = method;
+        _sel        = method_getName(method);
+        _imp        = method_getImplementation(method);
+        _name       = [NSString stringWithUTF8String:name];
         _typeEncoding = [NSString stringWithUTF8String:typeEncoding];
-    }
-    char *returnType = method_copyReturnType(method);
-    if (returnType) {
-        _returnTypeEncoding = [NSString stringWithUTF8String:returnType];
-        free(returnType);
-    }
-    unsigned int argumentCount = method_getNumberOfArguments(method);
-    if (argumentCount > 0) {
-        NSMutableArray *argumentTypes = [NSMutableArray new];
-        for (unsigned int i = 0; i < argumentCount; i++) {
-            char *argumentType = method_copyArgumentType(method, i);
-            NSString *type = argumentType ? [NSString stringWithUTF8String:argumentType] : nil;
-            [argumentTypes addObject:type ? type : @""];
-            if (argumentType) free(argumentType);
+        
+        char *returnType = method_copyReturnType(method);
+        if (returnType == nil) {
+            _returnTypeEncoding = [NSString stringWithUTF8String:returnType];
+            free(returnType);
         }
-        _argumentTypeEncodings = argumentTypes;
+        
+        unsigned int const count = method_getNumberOfArguments(method);
+        if (count > 0) {
+            NSMutableArray *argumentTypes = [NSMutableArray arrayWithCapacity:count];
+            for (unsigned int i = 0; i < count; i++) {
+                char *argumentType = method_copyArgumentType(method, i);
+                NSString *type = argumentType ? [NSString stringWithUTF8String:argumentType] : nil;
+                [argumentTypes addObject:type ? type : @""];
+                if (argumentType) free(argumentType);
+            }
+            _argumentTypeEncodings = argumentTypes;
+        }
     }
     return self;
 }
@@ -153,12 +172,19 @@ XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding) {
 
 - (instancetype)initWithProperty:(objc_property_t)property {
     if (!property) return nil;
-    self = [super init];
-    _identity = property;
-    const char *name = property_getName(property);
-    if (name) {
-        _name = [NSString stringWithUTF8String:name];
+    
+    const char * const name = property_getName(property);
+    if (name == nil) {
+        return nil;
     }
+    
+    self = [super init];
+    if (self == nil) {
+        return nil;
+    }
+    
+    _identity = property;
+    _name     = [NSString stringWithUTF8String:name];
     
     XZObjcType type = 0;
     unsigned int attrCount;
@@ -176,7 +202,7 @@ XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding) {
                         
                         NSString *clsName = nil;
                         if ([scanner scanUpToCharactersFromSet: [NSCharacterSet characterSetWithCharactersInString:@"\"<"] intoString:&clsName]) {
-                            if (clsName.length) _cls = objc_getClass(clsName.UTF8String);
+                            if (clsName.length) _subtype = objc_getClass(clsName.UTF8String);
                         }
                         
                         NSMutableArray *protocols = nil;
@@ -261,15 +287,15 @@ XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding) {
     if (self) {
         _isValid = NO;
         _identity = cls;
-        _originSuperClass = class_getSuperclass(cls);
-        _isMetaClass = class_isMetaClass(cls);
-        if (!_isMetaClass) {
-            _originMetaClass = objc_getMetaClass(class_getName(cls));
+        _identitySuper = class_getSuperclass(cls);
+        _isMeta = class_isMetaClass(cls);
+        if (!_isMeta) {
+            _identityMeta = objc_getMetaClass(class_getName(cls));
         }
         _name = NSStringFromClass(cls);
         [self activateIfNeeded];
 
-        _superClassDescriptor = [self.class descriptorForClass:_originSuperClass];
+        _superDescriptor = [self.class descriptorForClass:_identitySuper];
     }
     return self;
 }
@@ -349,7 +375,7 @@ XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding) {
     XZObjcClassDescriptor *meta = CFDictionaryGetValue(class_isMetaClass(cls) ? metaCache : classCache, (__bridge const void *)(cls));
     if (!meta) {
         meta = [[XZObjcClassDescriptor alloc] initWithClass:cls];
-        CFDictionarySetValue(meta.isMetaClass ? metaCache : classCache, (__bridge const void *)(cls), (__bridge const void *)(meta));
+        CFDictionarySetValue(meta.isMeta ? metaCache : classCache, (__bridge const void *)(cls), (__bridge const void *)(meta));
     } else if (!meta->_isValid) {
         [meta activateIfNeeded];
     }
@@ -357,7 +383,7 @@ XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding) {
     return meta;
 }
 
-+ (instancetype)classDescriptorNamed:(NSString *)className {
++ (instancetype)descriptorNamed:(NSString *)className {
     Class cls = NSClassFromString(className);
     return [self descriptorForClass:cls];
 }

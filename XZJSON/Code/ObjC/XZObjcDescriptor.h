@@ -85,12 +85,7 @@ FOUNDATION_EXPORT XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding);
 @property (nonatomic, assign, readonly) ptrdiff_t offset;       ///< Ivar's offset
 @property (nonatomic, strong, readonly) NSString *typeEncoding; ///< Ivar's type encoding
 @property (nonatomic, assign, readonly) XZObjcType type;        ///< Ivar's type
-
-/// Creates and returns an ivar info object.
-///
-///  @param ivar ivar opaque struct
-///  @return A new object, or nil if an error occurs.
-- (instancetype)initWithIvar:(Ivar)ivar NS_DESIGNATED_INITIALIZER;
+- (nullable instancetype)initWithIvar:(Ivar)ivar NS_DESIGNATED_INITIALIZER;
 - (instancetype)init NS_UNAVAILABLE;
 @end
 
@@ -106,14 +101,7 @@ FOUNDATION_EXPORT XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding);
 @property (nonatomic, strong, readonly) NSString *typeEncoding;         ///< method's parameter and return types
 @property (nonatomic, strong, readonly) NSString *returnTypeEncoding;   ///< return value's type
 @property (nullable, nonatomic, strong, readonly) NSArray<NSString *> *argumentTypeEncodings; ///< array of arguments' type
-
-/**
- Creates and returns a method info object.
- 
- @param method method opaque struct
- @return A new object, or nil if an error occurs.
- */
-- (instancetype)initWithMethod:(Method)method NS_DESIGNATED_INITIALIZER;
+- (nullable instancetype)initWithMethod:(Method)method NS_DESIGNATED_INITIALIZER;
 - (instancetype)init NS_UNAVAILABLE;
 @end
 
@@ -125,17 +113,12 @@ FOUNDATION_EXPORT XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding);
 @property (nonatomic, assign, readonly) objc_property_t identity; ///< property's opaque struct
 @property (nonatomic, strong, readonly) NSString *name;           ///< property's name
 @property (nonatomic, assign, readonly) XZObjcType type;          ///< property's type
+@property (nullable, nonatomic, assign, readonly) Class subtype;  ///< may be nil
 @property (nonatomic, strong, readonly) NSString *typeEncoding;   ///< property's encoding value
 @property (nonatomic, strong, readonly) NSString *ivarName;       ///< property's ivar name
-@property (nullable, nonatomic, assign, readonly) Class cls;      ///< may be nil
 @property (nullable, nonatomic, strong, readonly) NSArray<NSString *> *protocols; ///< may nil
 @property (nonatomic, assign, readonly) SEL getter;               ///< getter (nonnull)
 @property (nonatomic, assign, readonly) SEL setter;               ///< setter (nonnull)
-
-///  Creates and returns a property info object.
-///
-///  @param property property opaque struct
-///  @return A new object, or nil if an error occurs.
 - (instancetype)initWithProperty:(objc_property_t)property NS_DESIGNATED_INITIALIZER;
 - (instancetype)init NS_UNAVAILABLE;
 @end
@@ -145,15 +128,15 @@ FOUNDATION_EXPORT XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding);
 /// Class information for a class.
 @interface XZObjcClassDescriptor : NSObject
 
-@property (nonatomic, assign, readonly) Class identity;                     ///< class object
-@property (nullable, nonatomic, assign, readonly) Class originSuperClass;   ///< super class object
-@property (nullable, nonatomic, assign, readonly) Class originMetaClass;    ///< class's meta class object
+@property (nonatomic, assign, readonly) Class identity;                  ///< class object
+@property (nullable, nonatomic, assign, readonly) Class identitySuper;   ///< super class object
+@property (nullable, nonatomic, assign, readonly) Class identityMeta;    ///< class's meta class object
 
-@property (nonatomic, readonly) BOOL isMetaClass;                                                                ///< whether this class is meta class
-@property (nonatomic, strong, readonly) NSString *name;                                                          ///< class name
-@property (nullable, nonatomic, strong, readonly) XZObjcClassDescriptor *superClassDescriptor;                               ///< super class's class info
-@property (nullable, nonatomic, strong, readonly) NSDictionary<NSString *, XZObjcIvarDescriptor *> *ivars;         ///< ivars
-@property (nullable, nonatomic, strong, readonly) NSDictionary<NSString *, XZObjcMethodDescriptor *> *methods;     ///< methods
+@property (nonatomic, readonly) BOOL isMeta;                                                                        ///< whether this class is meta class
+@property (nonatomic, strong, readonly) NSString *name;                                                             ///< class name
+@property (nullable, nonatomic, strong, readonly) XZObjcClassDescriptor *superDescriptor;                           ///< super class's class info
+@property (nullable, nonatomic, strong, readonly) NSDictionary<NSString *, XZObjcIvarDescriptor *>     *ivars;      ///< ivars
+@property (nullable, nonatomic, strong, readonly) NSDictionary<NSString *, XZObjcMethodDescriptor *>   *methods;    ///< methods
 @property (nullable, nonatomic, strong, readonly) NSDictionary<NSString *, XZObjcPropertyDescriptor *> *properties; ///< properties
 
 - (instancetype)initWithClass:(Class)cls NS_DESIGNATED_INITIALIZER;
@@ -196,7 +179,7 @@ FOUNDATION_EXPORT XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding);
  @param className A class name.
  @return A class info, or nil if an error occurs.
  */
-+ (nullable XZObjcClassDescriptor *)classDescriptorNamed:(NSString *)className;
++ (nullable XZObjcClassDescriptor *)descriptorNamed:(NSString *)className;
 
 @end
 
