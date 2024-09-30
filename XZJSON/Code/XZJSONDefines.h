@@ -34,7 +34,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///     }
 ///
 ///     // 调用 JSON 转模型方法
-///     [XZJSONCoder object:self decodeWithDictionary:JSON];
+///     [XZJSON object:self decodeWithDictionary:JSON];
 ///
 ///     // 验证模型是否正确
 ///     if (self.foo == nil) {
@@ -53,7 +53,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// ```objc
 /// - (nullable NSDictionary *)encodeIntoJSONDictionary {
 ///     NSMutableDictionary *dictionary = [NSMutableDictionary dictionary];
-///     [XZJSONCoder object:self encodeIntoDictionary:dictionary];
+///     [XZJSON object:self encodeIntoDictionary:dictionary];
 ///     return dictionary;
 /// }
 /// ```

@@ -33,7 +33,7 @@ NS_ASSUME_NONNULL_BEGIN
     BOOL _hasCustomTransformToDictionary;
     
     BOOL _supportsXZJSONDecoding;
-    BOOL _forwardsDecodeForClass; ///< 转发模型解析
+    BOOL _forwardsDecodeForClass;   ///< 转发模型解析
     BOOL _canEncodeFromDictionary;
     BOOL _usesDecodingInitializer;
     

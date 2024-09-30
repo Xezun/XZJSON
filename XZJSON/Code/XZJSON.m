@@ -1,16 +1,16 @@
 //
-//  XZJSONCoder.m
+//  XZJSON.m
 //  XZJSON
 //
 //  Created by 徐臻 on 2024/9/28.
 //
 
-#import "XZJSONCoder.h"
+#import "XZJSON.h"
 #import "NSObject+YYModel.h"
 #import "XZJSONClassDescriptor.h"
 #import "XZJSONPrivate.h"
 
-@implementation XZJSONCoder
+@implementation XZJSON
 
 #pragma mark - Decoder
 
@@ -213,7 +213,7 @@
 
 
 
-@implementation XZJSONCoder (NSCoder)
+@implementation XZJSON (NSCoder)
 
 // - (void)yy_modelEncodeWithCoder:(NSCoder *)aCoder
 + (void)object:(id)object encodeWithCoder:(NSCoder *)aCoder {

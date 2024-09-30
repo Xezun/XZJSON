@@ -1,5 +1,5 @@
 //
-//  XZJSONCoder.h
+//  XZJSON.h
 //  XZJSON
 //
 //  Created by 徐臻 on 2024/9/28.
@@ -11,7 +11,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface XZJSONCoder : NSObject
+@interface XZJSON : NSObject
 
 /// JSON转模型。
 /// - Parameters:
@@ -32,7 +32,7 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 
-@interface XZJSONCoder (NSCoder)
+@interface XZJSON (NSCoder)
 
 @end
 
