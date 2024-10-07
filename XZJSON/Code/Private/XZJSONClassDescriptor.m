@@ -11,9 +11,9 @@
 
 @implementation XZJSONClassDescriptor
 
-- (instancetype)initWithClass:(Class)aClass {
-    XZObjcClassDescriptor * const descriptor = [XZObjcClassDescriptor descriptorForClass:aClass];
-    if (descriptor == nil) {
+- (instancetype)initWithClass:(nonnull Class)rawClass {
+    XZObjcClassDescriptor * const aClass = [XZObjcClassDescriptor descriptorForClass:rawClass];
+    if (aClass == nil) {
         return nil;
     }
     self = [super init];
@@ -23,8 +23,8 @@
     
     // 黑名单
     NSSet *blockedKeys = nil;
-    if ([aClass respondsToSelector:@selector(blockedJSONCodingKeys)]) {
-        NSArray *properties = [aClass blockedJSONCodingKeys];
+    if ([rawClass respondsToSelector:@selector(blockedJSONCodingKeys)]) {
+        NSArray *properties = [rawClass blockedJSONCodingKeys];
         if (properties) {
             blockedKeys = [NSSet setWithArray:properties];
         }
@@ -32,8 +32,8 @@
     
     // 白名单
     NSSet *allowedKeys = nil;
-    if ([aClass respondsToSelector:@selector(allowedJSONCodingKeys)]) {
-        NSArray *properties = [aClass allowedJSONCodingKeys];
+    if ([rawClass respondsToSelector:@selector(allowedJSONCodingKeys)]) {
+        NSArray *properties = [rawClass allowedJSONCodingKeys];
         if (properties) {
             allowedKeys = [NSSet setWithArray:properties];
         }
@@ -41,8 +41,8 @@
     
     // 类映射
     NSDictionary *mappingClasses = nil;
-    if ([aClass respondsToSelector:@selector(mappingJSONCodingClasses)]) {
-        mappingClasses = [aClass mappingJSONCodingClasses];
+    if ([rawClass respondsToSelector:@selector(mappingJSONCodingClasses)]) {
+        mappingClasses = [rawClass mappingJSONCodingClasses];
         if (mappingClasses) {
             NSMutableDictionary *tmp = [NSMutableDictionary new];
             [mappingClasses enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
@@ -58,34 +58,34 @@
     }
     
     // Create all property metas.
-    NSMutableDictionary *allProperties = [NSMutableDictionary new];
-    XZObjcClassDescriptor *currentDescriptor = descriptor;
-    while (currentDescriptor && currentDescriptor.super != nil) { // recursive parse super class, but ignore root class (NSObject/NSProxy)
-        for (XZObjcPropertyDescriptor *property in currentDescriptor.properties.allValues) {
-            if (!property.name) continue;
-            if (blockedKeys && [blockedKeys containsObject:property.name]) continue;
-            if (allowedKeys && ![allowedKeys containsObject:property.name]) continue;
-            XZJSONPropertyDescriptor *propertyDescriptor = [XZJSONPropertyDescriptor descriptorWithClass:descriptor property:property elementClass:mappingClasses[property.name]];
-            if (!propertyDescriptor || !propertyDescriptor->_name) continue;
-            if (!propertyDescriptor->_getter || !propertyDescriptor->_setter) continue;
-            if (allProperties[propertyDescriptor->_name]) continue;
-            allProperties[propertyDescriptor->_name] = propertyDescriptor;
+    NSMutableDictionary * const namedProperties = [NSMutableDictionary new];
+    XZObjcClassDescriptor *currentClass = aClass;
+    while (currentClass && currentClass.super != nil) { // recursive parse super class, but ignore root class (NSObject/NSProxy)
+        for (XZObjcPropertyDescriptor *aProperty in currentClass.properties.allValues) {
+            if (!aProperty.name)                                                 continue;
+            if (blockedKeys && [blockedKeys containsObject:aProperty.name])      continue;
+            if (allowedKeys && ![allowedKeys containsObject:aProperty.name])     continue;
+            XZJSONPropertyDescriptor *property = [XZJSONPropertyDescriptor descriptorWithClass:aClass property:aProperty elementClass:mappingClasses[aProperty.name]];
+            if (!property || !property->_name)            continue;
+            if (!property->_getter || !property->_setter) continue;
+            if (namedProperties[property->_name])         continue;
+            namedProperties[property->_name] = property;
         }
-        currentDescriptor = currentDescriptor.super;
+        currentClass = currentClass.super;
     }
-    if (allProperties.count) _properties = allProperties.allValues.copy;
+    if (namedProperties.count) _properties = namedProperties.allValues.copy;
     
     // create mapper
-    NSMutableDictionary *keyProperties    = [NSMutableDictionary new];
+    NSMutableDictionary *keyProperties      = [NSMutableDictionary new];
     NSMutableArray      *keyPathProperties  = [NSMutableArray new];
     NSMutableArray      *keyArrayProperties = [NSMutableArray new];
     
-    if ([aClass respondsToSelector:@selector(mappingJSONCodingKeys)]) {
-        NSDictionary *customMapper = [aClass mappingJSONCodingKeys];
+    if ([rawClass respondsToSelector:@selector(mappingJSONCodingKeys)]) {
+        NSDictionary *customMapper = [rawClass mappingJSONCodingKeys];
         [customMapper enumerateKeysAndObjectsUsingBlock:^(NSString *propertyName, id const JSONKey, BOOL *stop) {
-            XZJSONPropertyDescriptor *property = allProperties[propertyName];
+            XZJSONPropertyDescriptor *property = namedProperties[propertyName];
             if (!property) return;
-            [allProperties removeObjectForKey:propertyName];
+            [namedProperties removeObjectForKey:propertyName];
             
             if ([JSONKey isKindOfClass:[NSString class]]) {
                 NSString * const stringJSONKey = JSONKey;
@@ -144,26 +144,26 @@
         }];
     }
     
-    [allProperties enumerateKeysAndObjectsUsingBlock:^(NSString *name, XZJSONPropertyDescriptor *propertyMeta, BOOL *stop) {
-        propertyMeta->_JSONKey = name;
-        propertyMeta->_next = keyProperties[name] ?: nil;
-        keyProperties[name] = propertyMeta;
+    [namedProperties enumerateKeysAndObjectsUsingBlock:^(NSString *name, XZJSONPropertyDescriptor *property, BOOL *stop) {
+        property->_JSONKey = name;
+        property->_next = keyProperties[name] ?: nil;
+        keyProperties[name] = property;
     }];
     
     if (keyProperties.count)    _keyProperties      = keyProperties;
     if (keyPathProperties)      _keyPathProperties  = keyPathProperties;
     if (keyArrayProperties)     _keyArrayProperties = keyArrayProperties;
     
-    _descriptor = descriptor;
-    _keyMappedCount = _properties.count;
-    _nsType = XZJSONEncodingNSTypeFromClass(aClass);
+    _descriptor = aClass;
+    _numberOfProperties = _properties.count;
+    _nsType = XZJSONEncodingNSTypeFromClass(rawClass);
     
-    _supportsXZJSONDecoding = [aClass conformsToProtocol:@protocol(XZJSONDecoding)];
-    _forwardsDecodeForClass = (_supportsXZJSONDecoding && [aClass respondsToSelector:@selector(forwardingClassForJSONDictionary:)]);
-    _canEncodeFromDictionary = (_supportsXZJSONDecoding && [aClass respondsToSelector:@selector(canDecodeFromJSONDictionary:)]);
-    _usesDecodingInitializer = (_supportsXZJSONDecoding && [aClass instancesRespondToSelector:@selector(initWithJSONDictionary:)]);
+    _supportsXZJSONDecoding = [rawClass conformsToProtocol:@protocol(XZJSONDecoding)];
+    _forwardsDecodeForClass = (_supportsXZJSONDecoding && [rawClass respondsToSelector:@selector(forwardingClassForJSONDictionary:)]);
+    _canEncodeFromDictionary = (_supportsXZJSONDecoding && [rawClass respondsToSelector:@selector(canDecodeFromJSONDictionary:)]);
+    _usesDecodingInitializer = (_supportsXZJSONDecoding && [rawClass instancesRespondToSelector:@selector(initWithJSONDictionary:)]);
     
-    _supportsXZJSONEncoding = [aClass conformsToProtocol:@protocol(XZJSONDecoding)] && [aClass instancesRespondToSelector:@selector(encodeIntoJSONDictionary:)];
+    _supportsXZJSONEncoding = [rawClass conformsToProtocol:@protocol(XZJSONDecoding)] && [rawClass instancesRespondToSelector:@selector(encodeIntoJSONDictionary:)];
     
     return self;
 }

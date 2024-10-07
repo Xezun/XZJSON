@@ -794,7 +794,7 @@ FOUNDATION_STATIC_INLINE id XZJSONEncodingRecursive(NSObject *model) {
     
     
     XZJSONClassDescriptor *modelMeta = [XZJSONClassDescriptor descriptorForClass:[model class]];
-    if (!modelMeta || modelMeta->_keyMappedCount == 0) return nil;
+    if (!modelMeta || modelMeta->_numberOfProperties == 0) return nil;
     NSMutableDictionary *result = [[NSMutableDictionary alloc] initWithCapacity:64];
     __unsafe_unretained NSMutableDictionary *dic = result; // avoid retain and release in block
     [modelMeta->_keyProperties enumerateKeysAndObjectsUsingBlock:^(NSString *propertyMappedKey, XZJSONPropertyDescriptor *propertyMeta, BOOL *stop) {

@@ -16,18 +16,19 @@ NS_ASSUME_NONNULL_BEGIN
 /// A class info in object model.
 @interface XZJSONClassDescriptor : NSObject {
     @package
+    /// 描述类信息的对象。
     XZObjcClassDescriptor *_descriptor;
-    /// Key:mapped key and key path, Value:XZJSONObjcPropertyMeta.
-    NSDictionary<NSString *, XZJSONPropertyDescriptor *> *_keyProperties;
-    /// Array<XZJSONObjcPropertyMeta>, all property meta of this model.
+    /// 所有可模型化或序列化的属性。Array, all property meta of this model.
     NSArray<XZJSONPropertyDescriptor *> *_properties;
-    /// Array<XZJSONObjcPropertyMeta>, property meta which is mapped to a key path.
+    /// 所有可模型化或序列化的属性的数量。The number of mapped key (and key path), same to _mapper.count.
+    NSUInteger _numberOfProperties;
+    /// JSON 键与属性的映射。Key:mapped key and key path, Value:XZJSONObjcPropertyMeta.
+    NSDictionary<NSString *, XZJSONPropertyDescriptor *> *_keyProperties;
+    /// JSON 键值路径与属性的映射。Array<XZJSONObjcPropertyMeta>, property meta which is mapped to a key path.
     NSArray *_keyPathProperties;
-    /// Array<XZJSONObjcPropertyMeta>, property meta which is mapped to multi keys.
+    /// 多个 JSON 键与属性的映射。Array<XZJSONObjcPropertyMeta>, property meta which is mapped to multi keys.
     NSArray *_keyArrayProperties;
-    /// The number of mapped key (and key path), same to _mapper.count.
-    NSUInteger _keyMappedCount;
-    /// Model class type.
+    /// 如果是，原生对象的类型。 Model class type.
     XZJSONEncodingNSType _nsType;
     
     /// 是否自定义模型化过程
@@ -42,10 +43,10 @@ NS_ASSUME_NONNULL_BEGIN
     /// 是否自定义序列化过程
     BOOL _supportsXZJSONEncoding;
 }
-- (nullable instancetype)initWithClass:(Class)aClass NS_DESIGNATED_INITIALIZER;
-- (instancetype)init NS_UNAVAILABLE;
 
+- (instancetype)init NS_UNAVAILABLE;
 + (nullable XZJSONClassDescriptor *)descriptorForClass:(nullable Class)aClass;
+
 @end
 
 NS_ASSUME_NONNULL_END

@@ -173,7 +173,7 @@
     
     XZJSONClassDescriptor *descriptor = [XZJSONClassDescriptor descriptorForClass:[model class]];
     if (dictionary == nil) {
-        dictionary = [NSMutableDictionary dictionaryWithCapacity:descriptor->_keyMappedCount];
+        dictionary = [NSMutableDictionary dictionaryWithCapacity:descriptor->_numberOfProperties];
     }
     
     // 自定义解析
@@ -196,14 +196,14 @@
 
 // yy_modelSetWithDictionary
 + (void)object:(id)object decodeWithDictionary:(NSDictionary *)dictionary descriptor:(XZJSONClassDescriptor *)modelMeta {
-    if (modelMeta->_keyMappedCount == 0) return;
+    if (modelMeta->_numberOfProperties == 0) return;
    
     XZJSONEncodingContext context = {0};
     context.descriptor = (__bridge void *)(modelMeta);
     context.model      = (__bridge void *)(object);
     context.dictionary = (__bridge void *)(dictionary);
     
-    if (modelMeta->_keyMappedCount >= CFDictionaryGetCount((CFDictionaryRef)dictionary)) {
+    if (modelMeta->_numberOfProperties >= CFDictionaryGetCount((CFDictionaryRef)dictionary)) {
         CFDictionaryApplyFunction((CFDictionaryRef)dictionary, XZJSONDecodingDictionaryEnumeratorFunction, &context);
         if (modelMeta->_keyPathProperties) {
             CFArrayApplyFunction((CFArrayRef)modelMeta->_keyPathProperties,
@@ -219,7 +219,7 @@
         }
     } else {
         CFArrayApplyFunction((CFArrayRef)modelMeta->_properties,
-                             CFRangeMake(0, modelMeta->_keyMappedCount),
+                             CFRangeMake(0, modelMeta->_numberOfProperties),
                              XZJSONDecodingArrayEnumeratorFunction,
                              &context);
     }
@@ -231,7 +231,7 @@
 }
 
 + (void)object:(id)model encodeIntoDictionary:(NSMutableDictionary *)dictionary descriptor:(XZJSONClassDescriptor *)descriptor {
-    if (!descriptor || descriptor->_keyMappedCount == 0) return;
+    if (!descriptor || descriptor->_numberOfProperties == 0) return;
     
     __unsafe_unretained NSMutableDictionary *dic = dictionary; // avoid retain and release in block
     [descriptor->_keyProperties enumerateKeysAndObjectsUsingBlock:^(NSString *propertyMappedKey, XZJSONPropertyDescriptor *propertyMeta, BOOL *stop) {
