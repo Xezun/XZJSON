@@ -14,7 +14,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// A property info in object model.
 @interface XZJSONPropertyDescriptor : NSObject {
     @package
-    XZObjcPropertyDescriptor *_objcDescriptor;  ///< property's info
+    XZObjcPropertyDescriptor *_descriptor;  ///< property's info
     XZJSONPropertyDescriptor *_next; ///< next meta if there are multiple properties mapped to the same key.
     
     NSString *_name;                ///< property's name
@@ -26,20 +26,19 @@ NS_ASSUME_NONNULL_BEGIN
     SEL _getter;                    ///< getter, or nil if the instances cannot respond
     SEL _setter;                    ///< setter, or nil if the instances cannot respond
     BOOL _isKVCCompatible;          ///< YES if it can access with key-value coding
-    BOOL _isStructAvailableForKeyedArchiver; ///< YES if the struct can encoded with keyed archiver/unarchiver
-    BOOL _hasCustomClassFromDictionary; ///< class/generic class implements +modelCustomClassForDictionary:
+    BOOL _isNSCodingStruct; ///< YES if the struct can encoded with keyed archiver/unarchiver
     
     /*
      property->key:       _mappedToKey:key     _mappedToKeyPath:nil            _mappedToKeyArray:nil
      property->keyPath:   _mappedToKey:keyPath _mappedToKeyPath:keyPath(array) _mappedToKeyArray:nil
      property->keys:      _mappedToKey:keys[0] _mappedToKeyPath:nil/keyPath    _mappedToKeyArray:keys(array)
      */
-    NSString            * _Nullable _mappedToKey;       ///< the key mapped to
-    NSArray<NSString *> * _Nullable _mappedToKeyPath;   ///< the key path mapped to (nil if the name is not key path)
-    NSArray             * _Nullable _mappedToKeyArray;  ///< the key(NSString) or keyPath(NSArray) array (nil if not mapped to multiple keys)
+    NSString            * _Nullable _JSONKey;       ///< the key mapped to
+    NSArray<NSString *> * _Nullable _JSONKeyPath;   ///< the key path mapped to (nil if the name is not key path)
+    NSArray             * _Nullable _JSONKeyArray;  ///< the key(NSString) or keyPath(NSArray) array (nil if not mapped to multiple keys)
 }
 
-+ (XZJSONPropertyDescriptor *)descriptorWithClass:(XZObjcClassDescriptor *)aClass property:(XZObjcPropertyDescriptor *)aProperty elementClass:(nullable Class)elementClass;
++ (XZJSONPropertyDescriptor *)descriptorWithClass:(XZObjcClassDescriptor *)aClass property:(XZObjcPropertyDescriptor *)property elementClass:(nullable Class)elementClass;
 
 @end
 

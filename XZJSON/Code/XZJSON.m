@@ -82,7 +82,7 @@
             }
         }
         
-        id model = [aClass new];
+        id const model = [aClass new];
         if (model != nil) {
             [self object:model decodeWithDictionary:object];
         }
@@ -205,20 +205,20 @@
     
     if (modelMeta->_keyMappedCount >= CFDictionaryGetCount((CFDictionaryRef)dictionary)) {
         CFDictionaryApplyFunction((CFDictionaryRef)dictionary, XZJSONDecodingDictionaryEnumeratorFunction, &context);
-        if (modelMeta->_keyPathPropertyMetas) {
-            CFArrayApplyFunction((CFArrayRef)modelMeta->_keyPathPropertyMetas,
-                                 CFRangeMake(0, CFArrayGetCount((CFArrayRef)modelMeta->_keyPathPropertyMetas)),
+        if (modelMeta->_keyPathProperties) {
+            CFArrayApplyFunction((CFArrayRef)modelMeta->_keyPathProperties,
+                                 CFRangeMake(0, CFArrayGetCount((CFArrayRef)modelMeta->_keyPathProperties)),
                                  XZJSONDecodingArrayEnumeratorFunction,
                                  &context);
         }
-        if (modelMeta->_multiKeysPropertyMetas) {
-            CFArrayApplyFunction((CFArrayRef)modelMeta->_multiKeysPropertyMetas,
-                                 CFRangeMake(0, CFArrayGetCount((CFArrayRef)modelMeta->_multiKeysPropertyMetas)),
+        if (modelMeta->_keyArrayProperties) {
+            CFArrayApplyFunction((CFArrayRef)modelMeta->_keyArrayProperties,
+                                 CFRangeMake(0, CFArrayGetCount((CFArrayRef)modelMeta->_keyArrayProperties)),
                                  XZJSONDecodingArrayEnumeratorFunction,
                                  &context);
         }
     } else {
-        CFArrayApplyFunction((CFArrayRef)modelMeta->_allPropertyMetas,
+        CFArrayApplyFunction((CFArrayRef)modelMeta->_properties,
                              CFRangeMake(0, modelMeta->_keyMappedCount),
                              XZJSONDecodingArrayEnumeratorFunction,
                              &context);
@@ -234,17 +234,17 @@
     if (!descriptor || descriptor->_keyMappedCount == 0) return;
     
     __unsafe_unretained NSMutableDictionary *dic = dictionary; // avoid retain and release in block
-    [descriptor->_mapper enumerateKeysAndObjectsUsingBlock:^(NSString *propertyMappedKey, XZJSONPropertyDescriptor *propertyMeta, BOOL *stop) {
+    [descriptor->_keyProperties enumerateKeysAndObjectsUsingBlock:^(NSString *propertyMappedKey, XZJSONPropertyDescriptor *propertyMeta, BOOL *stop) {
         if (!propertyMeta->_getter) return;
         NSMutableDictionary *dict = dictionary;
         
         NSString *key = nil;
-        if (propertyMeta->_mappedToKeyPath) {
-            for (NSInteger i = 0, max = propertyMeta->_mappedToKeyPath.count - 1; i <= max; i++) {
+        if (propertyMeta->_JSONKeyPath) {
+            for (NSInteger i = 0, max = propertyMeta->_JSONKeyPath.count - 1; i <= max; i++) {
                 if (![dict isKindOfClass:NSMutableDictionary.class]) {
                     return; // 对应的 key 已经有其它值，不支持设置 keyPath
                 }
-                NSString * const subKey = propertyMeta->_mappedToKeyPath[i];
+                NSString * const subKey = propertyMeta->_JSONKeyPath[i];
                 key = subKey;
                 if (i == max) {
                     break; // 最后一个
@@ -256,8 +256,8 @@
                 }
                 dict = subDict;
             }
-        } else if (!dic[propertyMeta->_mappedToKey]) {
-            key = propertyMeta->_mappedToKey;
+        } else if (!dic[propertyMeta->_JSONKey]) {
+            key = propertyMeta->_JSONKey;
         } else {
             return;
         }
@@ -311,7 +311,7 @@
 
 
 
-@implementation XZJSON (NSCoder)
+@implementation XZJSON (XZExtenedJSON)
 
 // - (void)yy_modelEncodeWithCoder:(NSCoder *)aCoder
 + (void)object:(id)object encodeWithCoder:(NSCoder *)aCoder {
@@ -327,7 +327,7 @@
         return;
     }
     
-    for (XZJSONPropertyDescriptor *propertyMeta in modelMeta->_allPropertyMetas) {
+    for (XZJSONPropertyDescriptor *propertyMeta in modelMeta->_properties) {
         if (!propertyMeta->_getter) return;
         
         if (propertyMeta->_isCNumber) {
@@ -356,7 +356,7 @@
                 } break;
                 case XZObjcTypeStruct:
                 case XZObjcTypeUnion: {
-                    if (propertyMeta->_isKVCCompatible && propertyMeta->_isStructAvailableForKeyedArchiver) {
+                    if (propertyMeta->_isKVCCompatible && propertyMeta->_isNSCodingStruct) {
                         @try {
                             NSValue *value = [object valueForKey:NSStringFromSelector(propertyMeta->_getter)];
                             [aCoder encodeObject:value forKey:propertyMeta->_name];
@@ -378,7 +378,7 @@
     XZJSONClassDescriptor *modelMeta = [XZJSONClassDescriptor descriptorForClass:[object class]];
     if (modelMeta->_nsType) return object;
     
-    for (XZJSONPropertyDescriptor *propertyMeta in modelMeta->_allPropertyMetas) {
+    for (XZJSONPropertyDescriptor *propertyMeta in modelMeta->_properties) {
         if (!propertyMeta->_setter) continue;
         
         if (propertyMeta->_isCNumber) {
@@ -425,7 +425,7 @@
     if (modelMeta->_nsType) return [object hash];
     
     NSMutableString *string = [NSMutableString string];
-    for (XZJSONPropertyDescriptor *propertyMeta in modelMeta->_allPropertyMetas) {
+    for (XZJSONPropertyDescriptor *propertyMeta in modelMeta->_properties) {
         if (!propertyMeta->_isKVCCompatible) continue;
         
         NSUInteger const hash = [[object valueForKey:NSStringFromSelector(propertyMeta->_getter)] hash];
@@ -445,7 +445,7 @@
     if (modelMeta->_nsType) return [object1 isEqual:object2];
     if ([object1 hash] != [object2 hash]) return NO;
     
-    for (XZJSONPropertyDescriptor *propertyMeta in modelMeta->_allPropertyMetas) {
+    for (XZJSONPropertyDescriptor *propertyMeta in modelMeta->_properties) {
         if (!propertyMeta->_isKVCCompatible) continue;
         id this = [object1 valueForKey:NSStringFromSelector(propertyMeta->_getter)];
         id that = [object2 valueForKey:NSStringFromSelector(propertyMeta->_getter)];
@@ -466,7 +466,7 @@
     if (modelMeta->_nsType) return [object copy];
     
     NSObject *one = [[object class] new];
-    for (XZJSONPropertyDescriptor *propertyMeta in modelMeta->_allPropertyMetas) {
+    for (XZJSONPropertyDescriptor *propertyMeta in modelMeta->_properties) {
         if (!propertyMeta->_getter || !propertyMeta->_setter) continue;
         
         if (propertyMeta->_isCNumber) {

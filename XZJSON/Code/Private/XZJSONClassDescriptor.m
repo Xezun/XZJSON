@@ -12,8 +12,8 @@
 @implementation XZJSONClassDescriptor
 
 - (instancetype)initWithClass:(Class)aClass {
-    XZObjcClassDescriptor * const objcDescriptor = [XZObjcClassDescriptor descriptorForClass:aClass];
-    if (objcDescriptor == nil) {
+    XZObjcClassDescriptor * const descriptor = [XZObjcClassDescriptor descriptorForClass:aClass];
+    if (descriptor == nil) {
         return nil;
     }
     self = [super init];
@@ -21,31 +21,31 @@
         return nil;
     }
     
-    // Get black list
-    NSSet *blacklist = nil;
+    // 黑名单
+    NSSet *blockedKeys = nil;
     if ([aClass respondsToSelector:@selector(blockedJSONCodingKeys)]) {
         NSArray *properties = [aClass blockedJSONCodingKeys];
         if (properties) {
-            blacklist = [NSSet setWithArray:properties];
+            blockedKeys = [NSSet setWithArray:properties];
         }
     }
     
-    // Get white list
-    NSSet *whitelist = nil;
+    // 白名单
+    NSSet *allowedKeys = nil;
     if ([aClass respondsToSelector:@selector(allowedJSONCodingKeys)]) {
         NSArray *properties = [aClass allowedJSONCodingKeys];
         if (properties) {
-            whitelist = [NSSet setWithArray:properties];
+            allowedKeys = [NSSet setWithArray:properties];
         }
     }
     
-    // Get container property's generic class
-    NSDictionary *genericMapper = nil;
+    // 类映射
+    NSDictionary *mappingClasses = nil;
     if ([aClass respondsToSelector:@selector(mappingJSONCodingClasses)]) {
-        genericMapper = [aClass mappingJSONCodingClasses];
-        if (genericMapper) {
+        mappingClasses = [aClass mappingJSONCodingClasses];
+        if (mappingClasses) {
             NSMutableDictionary *tmp = [NSMutableDictionary new];
-            [genericMapper enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
+            [mappingClasses enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
                 if (![key isKindOfClass:[NSString class]]) return;
                 if (object_isClass(obj)) {
                     tmp[key] = obj;
@@ -53,102 +53,109 @@
                     tmp[key] = NSClassFromString(obj);
                 }
             }];
-            genericMapper = tmp;
+            mappingClasses = tmp;
         }
     }
     
     // Create all property metas.
-    NSMutableDictionary *allPropertyMetas = [NSMutableDictionary new];
-    XZObjcClassDescriptor *curClassInfo = objcDescriptor;
-    while (curClassInfo && curClassInfo.identitySuper != nil) { // recursive parse super class, but ignore root class (NSObject/NSProxy)
-        for (XZObjcPropertyDescriptor *propertyInfo in curClassInfo.properties.allValues) {
-            if (!propertyInfo.name) continue;
-            if (blacklist && [blacklist containsObject:propertyInfo.name]) continue;
-            if (whitelist && ![whitelist containsObject:propertyInfo.name]) continue;
-            XZJSONPropertyDescriptor *meta = [XZJSONPropertyDescriptor descriptorWithClass:objcDescriptor property:propertyInfo elementClass:genericMapper[propertyInfo.name]];
-            if (!meta || !meta->_name) continue;
-            if (!meta->_getter || !meta->_setter) continue;
-            if (allPropertyMetas[meta->_name]) continue;
-            allPropertyMetas[meta->_name] = meta;
+    NSMutableDictionary *allProperties = [NSMutableDictionary new];
+    XZObjcClassDescriptor *currentDescriptor = descriptor;
+    while (currentDescriptor && currentDescriptor.super != nil) { // recursive parse super class, but ignore root class (NSObject/NSProxy)
+        for (XZObjcPropertyDescriptor *property in currentDescriptor.properties.allValues) {
+            if (!property.name) continue;
+            if (blockedKeys && [blockedKeys containsObject:property.name]) continue;
+            if (allowedKeys && ![allowedKeys containsObject:property.name]) continue;
+            XZJSONPropertyDescriptor *propertyDescriptor = [XZJSONPropertyDescriptor descriptorWithClass:descriptor property:property elementClass:mappingClasses[property.name]];
+            if (!propertyDescriptor || !propertyDescriptor->_name) continue;
+            if (!propertyDescriptor->_getter || !propertyDescriptor->_setter) continue;
+            if (allProperties[propertyDescriptor->_name]) continue;
+            allProperties[propertyDescriptor->_name] = propertyDescriptor;
         }
-        curClassInfo = curClassInfo.superDescriptor;
+        currentDescriptor = currentDescriptor.super;
     }
-    if (allPropertyMetas.count) _allPropertyMetas = allPropertyMetas.allValues.copy;
+    if (allProperties.count) _properties = allProperties.allValues.copy;
     
     // create mapper
-    NSMutableDictionary *mapper = [NSMutableDictionary new];
-    NSMutableArray *keyPathPropertyMetas = [NSMutableArray new];
-    NSMutableArray *multiKeysPropertyMetas = [NSMutableArray new];
+    NSMutableDictionary *keyProperties    = [NSMutableDictionary new];
+    NSMutableArray      *keyPathProperties  = [NSMutableArray new];
+    NSMutableArray      *keyArrayProperties = [NSMutableArray new];
     
     if ([aClass respondsToSelector:@selector(mappingJSONCodingKeys)]) {
         NSDictionary *customMapper = [aClass mappingJSONCodingKeys];
-        [customMapper enumerateKeysAndObjectsUsingBlock:^(NSString *propertyName, NSString *mappedToKey, BOOL *stop) {
-            XZJSONPropertyDescriptor *propertyMeta = allPropertyMetas[propertyName];
-            if (!propertyMeta) return;
-            [allPropertyMetas removeObjectForKey:propertyName];
+        [customMapper enumerateKeysAndObjectsUsingBlock:^(NSString *propertyName, id const JSONKey, BOOL *stop) {
+            XZJSONPropertyDescriptor *property = allProperties[propertyName];
+            if (!property) return;
+            [allProperties removeObjectForKey:propertyName];
             
-            if ([mappedToKey isKindOfClass:[NSString class]]) {
-                if (mappedToKey.length == 0) return;
+            if ([JSONKey isKindOfClass:[NSString class]]) {
+                NSString * const stringJSONKey = JSONKey;
+                if (stringJSONKey.length == 0) return;
                 
-                propertyMeta->_mappedToKey = mappedToKey;
-                NSArray *keyPath = [mappedToKey componentsSeparatedByString:@"."];
-                for (NSString *onePath in keyPath) {
-                    if (onePath.length == 0) {
-                        NSMutableArray *tmp = keyPath.mutableCopy;
-                        [tmp removeObject:@""];
-                        keyPath = tmp;
-                        break;
+                property->_JSONKey = stringJSONKey;
+                
+                if ([stringJSONKey containsString:@"."]) {
+                    NSArray *keyPath = [stringJSONKey componentsSeparatedByString:@"."];
+                    if ([keyPath containsObject:@""]) {
+                        NSMutableArray *arrayM = [keyPath mutableCopy];
+                        [arrayM removeObject:@""];
+                        keyPath = arrayM;
                     }
-                }
-                if (keyPath.count > 1) {
-                    propertyMeta->_mappedToKeyPath = keyPath;
-                    [keyPathPropertyMetas addObject:propertyMeta];
-                }
-                propertyMeta->_next = mapper[mappedToKey] ?: nil;
-                mapper[mappedToKey] = propertyMeta;
-                
-            } else if ([mappedToKey isKindOfClass:[NSArray class]]) {
-                
-                NSMutableArray *mappedToKeyArray = [NSMutableArray new];
-                for (NSString *oneKey in ((NSArray *)mappedToKey)) {
-                    if (![oneKey isKindOfClass:[NSString class]]) continue;
-                    if (oneKey.length == 0) continue;
-                    
-                    NSArray *keyPath = [oneKey componentsSeparatedByString:@"."];
                     if (keyPath.count > 1) {
-                        [mappedToKeyArray addObject:keyPath];
-                    } else {
-                        [mappedToKeyArray addObject:oneKey];
-                    }
-                    
-                    if (!propertyMeta->_mappedToKey) {
-                        propertyMeta->_mappedToKey = oneKey;
-                        propertyMeta->_mappedToKeyPath = keyPath.count > 1 ? keyPath : nil;
+                        property->_JSONKeyPath = keyPath;
+                        [keyPathProperties addObject:property];
                     }
                 }
-                if (!propertyMeta->_mappedToKey) return;
                 
-                propertyMeta->_mappedToKeyArray = mappedToKeyArray;
-                [multiKeysPropertyMetas addObject:propertyMeta];
+                property->_next = keyProperties[stringJSONKey];
+                keyProperties[stringJSONKey] = property;
+            } else if ([JSONKey isKindOfClass:[NSArray class]]) {
                 
-                propertyMeta->_next = mapper[mappedToKey] ?: nil;
-                mapper[mappedToKey] = propertyMeta;
+                NSMutableArray *JSONKeyArray = [NSMutableArray new];
+                for (NSString *key in ((NSArray *)JSONKey)) {
+                    if (![key isKindOfClass:[NSString class]]) continue;
+                    if (key.length == 0) continue;
+                    
+                    NSArray *keyPath = [key componentsSeparatedByString:@"."];
+                    if ([keyPath containsObject:@""]) {
+                        NSMutableArray *arrayM = [keyPath mutableCopy];
+                        [arrayM removeObject:@""];
+                        keyPath = arrayM;
+                    }
+                    
+                    if (keyPath.count > 1) {
+                        [JSONKeyArray addObject:keyPath];
+                    } else {
+                        [JSONKeyArray addObject:key];
+                    }
+                    
+                    if (!property->_JSONKey) {
+                        property->_JSONKey = key;
+                        property->_JSONKeyPath = keyPath.count > 1 ? keyPath : nil;
+                    }
+                }
+                if (!property->_JSONKey) return;
+                
+                property->_JSONKeyArray = JSONKeyArray;
+                [keyArrayProperties addObject:property];
+                
+                property->_next = keyProperties[JSONKey];
+                keyProperties[JSONKey] = property;
             }
         }];
     }
     
-    [allPropertyMetas enumerateKeysAndObjectsUsingBlock:^(NSString *name, XZJSONPropertyDescriptor *propertyMeta, BOOL *stop) {
-        propertyMeta->_mappedToKey = name;
-        propertyMeta->_next = mapper[name] ?: nil;
-        mapper[name] = propertyMeta;
+    [allProperties enumerateKeysAndObjectsUsingBlock:^(NSString *name, XZJSONPropertyDescriptor *propertyMeta, BOOL *stop) {
+        propertyMeta->_JSONKey = name;
+        propertyMeta->_next = keyProperties[name] ?: nil;
+        keyProperties[name] = propertyMeta;
     }];
     
-    if (mapper.count) _mapper = mapper;
-    if (keyPathPropertyMetas) _keyPathPropertyMetas = keyPathPropertyMetas;
-    if (multiKeysPropertyMetas) _multiKeysPropertyMetas = multiKeysPropertyMetas;
+    if (keyProperties.count)    _keyProperties      = keyProperties;
+    if (keyPathProperties)      _keyPathProperties  = keyPathProperties;
+    if (keyArrayProperties)     _keyArrayProperties = keyArrayProperties;
     
-    _objcDescriptor = objcDescriptor;
-    _keyMappedCount = _allPropertyMetas.count;
+    _descriptor = descriptor;
+    _keyMappedCount = _properties.count;
     _nsType = XZJSONEncodingNSTypeFromClass(aClass);
     
     _supportsXZJSONDecoding = [aClass conformsToProtocol:@protocol(XZJSONDecoding)];
@@ -179,7 +186,7 @@
     XZJSONClassDescriptor *descriptor = CFDictionaryGetValue(_cachedDescriptors, (__bridge const void *)(aClass));
     dispatch_semaphore_signal(_lock);
     
-    if (!descriptor || descriptor->_objcDescriptor.isValid) {
+    if (!descriptor || descriptor->_descriptor.isValid) {
         descriptor = [[XZJSONClassDescriptor alloc] initWithClass:aClass];
         if (descriptor) {
             dispatch_semaphore_wait(_lock, DISPATCH_TIME_FOREVER);

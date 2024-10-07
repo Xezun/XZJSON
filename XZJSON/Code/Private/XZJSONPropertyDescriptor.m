@@ -10,11 +10,11 @@
 
 @implementation XZJSONPropertyDescriptor
 
-+ (XZJSONPropertyDescriptor *)descriptorWithClass:(XZObjcClassDescriptor *)aClass property:(XZObjcPropertyDescriptor *)aProperty elementClass:(Class)elementClass {
++ (XZJSONPropertyDescriptor *)descriptorWithClass:(XZObjcClassDescriptor *)aClass property:(XZObjcPropertyDescriptor *)property elementClass:(Class)elementClass {
     
     // support pseudo generic class with protocol name
-    if (!elementClass && aProperty.protocols) {
-        for (NSString *protocol in aProperty.protocols) {
+    if (!elementClass && property.protocols) {
+        for (NSString *protocol in property.protocols) {
             Class cls = objc_getClass(protocol.UTF8String);
             if (cls) {
                 elementClass = cls;
@@ -24,13 +24,13 @@
     }
     
     XZJSONPropertyDescriptor *descriptor = [self new];
-    descriptor->_name = aProperty.name;
-    descriptor->_type = aProperty.type;
-    descriptor->_objcDescriptor = aProperty;
-    descriptor->_elementClass   = elementClass;
+    descriptor->_name         = property.name;
+    descriptor->_type         = property.type;
+    descriptor->_descriptor   = property;
+    descriptor->_elementClass = elementClass;
     
     if ((descriptor->_type & XZObjcTypeMask) == XZObjcTypeObject) {
-        descriptor->_nsType = XZJSONEncodingNSTypeFromClass(aProperty.subtype);
+        descriptor->_nsType = XZJSONEncodingNSTypeFromClass(property.subtype);
     } else {
         descriptor->_isCNumber = XZObjcTypeIsCNumber(descriptor->_type);
     }
@@ -57,28 +57,18 @@
             [set addObject:@"{UIOffset=dd}"];
             types = set;
         });
-        if ([types containsObject:aProperty.typeEncoding]) {
-            descriptor->_isStructAvailableForKeyedArchiver = YES;
+        if ([types containsObject:property.typeEncoding]) {
+            descriptor->_isNSCodingStruct = YES;
         }
     }
-    descriptor->_class = aProperty.subtype;
+    descriptor->_class = property.subtype;
     
-    if (elementClass) {
-        descriptor->_hasCustomClassFromDictionary = [elementClass respondsToSelector:@selector(forwardingClassForJSONDictionary:)];
-    } else if (descriptor->_class && descriptor->_nsType == XZJSONEncodingUnknown) {
-        descriptor->_hasCustomClassFromDictionary = [descriptor->_class respondsToSelector:@selector(forwardingClassForJSONDictionary:)];
+    if ([aClass.identity instancesRespondToSelector:property.getter]) {
+        descriptor->_getter = property.getter;
     }
     
-    if (aProperty.getter) {
-        if ([aClass.identity instancesRespondToSelector:aProperty.getter]) {
-            descriptor->_getter = aProperty.getter;
-        }
-    }
-    
-    if (aProperty.setter) {
-        if ([aClass.identity instancesRespondToSelector:aProperty.setter]) {
-            descriptor->_setter = aProperty.setter;
-        }
+    if ([aClass.identity instancesRespondToSelector:property.setter]) {
+        descriptor->_setter = property.setter;
     }
     
     if (descriptor->_getter && descriptor->_setter) {

@@ -14,7 +14,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// 类型枚举。
+/// 目前已知的 objc 所有数据类型的枚举。
 /// Type encoding's type.
 typedef NS_OPTIONS(NSUInteger, XZObjcType) {
     XZObjcTypeMask       = 0xFF,    ///< mask of type value
@@ -76,7 +76,7 @@ typedef NS_OPTIONS(NSUInteger, XZObjcType) {
 FOUNDATION_EXPORT XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding);
 
 
-/// 实例变量的元信息。
+/// 描述实例变量的对象。
 ///
 /// Instance variable information.
 @interface XZObjcIvarDescriptor : NSObject
@@ -90,7 +90,7 @@ FOUNDATION_EXPORT XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding);
 @end
 
 
-/// 方法的元信息。
+/// 描述方法的对象。
 ///
 /// Method information.
 @interface XZObjcMethodDescriptor : NSObject
@@ -99,47 +99,53 @@ FOUNDATION_EXPORT XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding);
 @property (nonatomic, assign, readonly) SEL sel;                        ///< method's selector
 @property (nonatomic, assign, readonly) IMP imp;                        ///< method's implementation
 @property (nonatomic, strong, readonly) NSString *typeEncoding;         ///< method's parameter and return types
-@property (nonatomic, strong, readonly) NSString *returnTypeEncoding;   ///< return value's type
-@property (nullable, nonatomic, strong, readonly) NSArray<NSString *> *argumentTypeEncodings; ///< array of arguments' type
+@property (nonatomic, strong, readonly, nullable) NSString *returnTypeEncoding;   ///< return value's type
+@property (nonatomic, strong, readonly, nullable) NSArray<NSString *> *argumentTypeEncodings; ///< array of arguments' type
 - (nullable instancetype)initWithMethod:(Method)method NS_DESIGNATED_INITIALIZER;
 - (instancetype)init NS_UNAVAILABLE;
 @end
 
-
-/// 属性的元信息。
+/// 描述属性的对象。
 ///
 /// Property information.
 @interface XZObjcPropertyDescriptor : NSObject
-@property (nonatomic, assign, readonly) objc_property_t identity; ///< property's opaque struct
-@property (nonatomic, strong, readonly) NSString *name;           ///< property's name
-@property (nonatomic, assign, readonly) XZObjcType type;          ///< property's type
-@property (nullable, nonatomic, assign, readonly) Class subtype;  ///< may be nil
-@property (nonatomic, strong, readonly) NSString *typeEncoding;   ///< property's encoding value
-@property (nonatomic, strong, readonly) NSString *ivarName;       ///< property's ivar name
-@property (nullable, nonatomic, strong, readonly) NSArray<NSString *> *protocols; ///< may nil
-@property (nonatomic, assign, readonly) SEL getter;               ///< getter (nonnull)
-@property (nonatomic, assign, readonly) SEL setter;               ///< setter (nonnull)
-- (instancetype)initWithProperty:(objc_property_t)property NS_DESIGNATED_INITIALIZER;
+@property (nonatomic, assign, readonly) objc_property_t identity;                   ///< property's opaque struct
+@property (nonatomic, copy, readonly) NSString *name;                             ///< property's name
+@property (nonatomic, assign, readonly) XZObjcType type;                            ///< property's type
+@property (nonatomic, assign, readonly, nullable) Class subtype;                    ///< may be nil
+@property (nonatomic, strong, readonly) NSString *typeEncoding;                     ///< property's encoding value
+@property (nonatomic, strong, readonly, nullable) NSString *ivarName;               ///< property's ivar name
+@property (nonatomic, strong, readonly, nullable) NSArray<NSString *> *protocols;   ///< may nil
+@property (nonatomic, assign, readonly) SEL getter;                                 ///< getter (nonnull)
+@property (nonatomic, assign, readonly) SEL setter;                                 ///< setter (nonnull)
+- (nullable instancetype)initWithProperty:(objc_property_t)property NS_DESIGNATED_INITIALIZER;
 - (instancetype)init NS_UNAVAILABLE;
 @end
 
-/// 类的元信息。
+/// 描述类的对象。
 ///
 /// Class information for a class.
 @interface XZObjcClassDescriptor : NSObject
 
-@property (nonatomic, assign, readonly) Class identity;                  ///< class object
-@property (nullable, nonatomic, assign, readonly) Class identitySuper;   ///< super class object
-@property (nullable, nonatomic, assign, readonly) Class identityMeta;    ///< class's meta class object
+/// 当前类，当前对象所描述的类。
+@property (nonatomic, assign, readonly) Class identity;
+/// 描述当前类的超类的对象。
+@property (nonatomic, readonly, nullable) XZObjcClassDescriptor *super;
+/// 描述当前类的元类的对象。
+@property (nonatomic, readonly, nullable) XZObjcClassDescriptor *meta;
 
-@property (nonatomic, readonly) BOOL isMeta;                                                                        ///< whether this class is meta class
-@property (nonatomic, strong, readonly) NSString *name;                                                             ///< class name
-@property (nullable, nonatomic, strong, readonly) XZObjcClassDescriptor *superDescriptor;                           ///< super class's class info
-@property (nullable, nonatomic, strong, readonly) NSDictionary<NSString *, XZObjcIvarDescriptor *>     *ivars;      ///< ivars
-@property (nullable, nonatomic, strong, readonly) NSDictionary<NSString *, XZObjcMethodDescriptor *>   *methods;    ///< methods
-@property (nullable, nonatomic, strong, readonly) NSDictionary<NSString *, XZObjcPropertyDescriptor *> *properties; ///< properties
 
-- (instancetype)initWithClass:(Class)cls NS_DESIGNATED_INITIALIZER;
+/// whether this class is meta class
+@property (nonatomic, readonly) BOOL isMeta;
+/// class name
+@property (nonatomic, copy, readonly) NSString *name;
+/// ivars
+@property (nonatomic, strong, readonly, nullable) NSDictionary<NSString *, XZObjcIvarDescriptor *>     *ivars;
+/// methods
+@property (nonatomic, strong, readonly, nullable) NSDictionary<NSString *, XZObjcMethodDescriptor *>   *methods;
+/// properties
+@property (nonatomic, strong, readonly, nullable) NSDictionary<NSString *, XZObjcPropertyDescriptor *> *properties;
+
 - (instancetype)init NS_UNAVAILABLE;
 
 /**

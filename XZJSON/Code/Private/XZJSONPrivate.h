@@ -594,7 +594,7 @@ FOUNDATION_STATIC_INLINE void ModelSetValueForProperty(__unsafe_unretained id mo
             case XZObjcTypeCArray: {
                 if ([value isKindOfClass:[NSValue class]]) {
                     const char *valueType = ((NSValue *)value).objCType;
-                    const char *metaType = meta->_objcDescriptor.typeEncoding.UTF8String;
+                    const char *metaType = meta->_descriptor.typeEncoding.UTF8String;
                     if (valueType && metaType && strcmp(valueType, metaType) == 0) {
                         [model setValue:value forKey:meta->_name];
                     }
@@ -668,7 +668,7 @@ typedef struct {
 FOUNDATION_STATIC_INLINE void XZJSONDecodingDictionaryEnumeratorFunction(const void *_key, const void *_value, void *_context) {
     XZJSONEncodingContext *context = _context;
     __unsafe_unretained XZJSONClassDescriptor *meta = (__bridge XZJSONClassDescriptor *)(context->descriptor);
-    __unsafe_unretained XZJSONPropertyDescriptor *propertyMeta = [meta->_mapper objectForKey:(__bridge id)(_key)];
+    __unsafe_unretained XZJSONPropertyDescriptor *propertyMeta = [meta->_keyProperties objectForKey:(__bridge id)(_key)];
     __unsafe_unretained id model = (__bridge id)(context->model);
     while (propertyMeta) {
         if (propertyMeta->_setter) {
@@ -691,12 +691,12 @@ FOUNDATION_STATIC_INLINE void XZJSONDecodingArrayEnumeratorFunction(const void *
     if (!propertyMeta->_setter) return;
     id value = nil;
     
-    if (propertyMeta->_mappedToKeyArray) {
-        value = YYValueForMultiKeys(dictionary, propertyMeta->_mappedToKeyArray);
-    } else if (propertyMeta->_mappedToKeyPath) {
-        value = YYValueForKeyPath(dictionary, propertyMeta->_mappedToKeyPath);
+    if (propertyMeta->_JSONKeyArray) {
+        value = YYValueForMultiKeys(dictionary, propertyMeta->_JSONKeyArray);
+    } else if (propertyMeta->_JSONKeyPath) {
+        value = YYValueForKeyPath(dictionary, propertyMeta->_JSONKeyPath);
     } else {
-        value = [dictionary objectForKey:propertyMeta->_mappedToKey];
+        value = [dictionary objectForKey:propertyMeta->_JSONKey];
     }
     
     if (value) {
@@ -797,7 +797,7 @@ FOUNDATION_STATIC_INLINE id XZJSONEncodingRecursive(NSObject *model) {
     if (!modelMeta || modelMeta->_keyMappedCount == 0) return nil;
     NSMutableDictionary *result = [[NSMutableDictionary alloc] initWithCapacity:64];
     __unsafe_unretained NSMutableDictionary *dic = result; // avoid retain and release in block
-    [modelMeta->_mapper enumerateKeysAndObjectsUsingBlock:^(NSString *propertyMappedKey, XZJSONPropertyDescriptor *propertyMeta, BOOL *stop) {
+    [modelMeta->_keyProperties enumerateKeysAndObjectsUsingBlock:^(NSString *propertyMappedKey, XZJSONPropertyDescriptor *propertyMeta, BOOL *stop) {
         if (!propertyMeta->_getter) return;
         
         id value = nil;
@@ -826,11 +826,11 @@ FOUNDATION_STATIC_INLINE id XZJSONEncodingRecursive(NSObject *model) {
         }
         if (!value) return;
         
-        if (propertyMeta->_mappedToKeyPath) {
+        if (propertyMeta->_JSONKeyPath) {
             NSMutableDictionary *superDic = dic;
             NSMutableDictionary *subDic = nil;
-            for (NSUInteger i = 0, max = propertyMeta->_mappedToKeyPath.count; i < max; i++) {
-                NSString *key = propertyMeta->_mappedToKeyPath[i];
+            for (NSUInteger i = 0, max = propertyMeta->_JSONKeyPath.count; i < max; i++) {
+                NSString *key = propertyMeta->_JSONKeyPath[i];
                 if (i + 1 == max) { // end
                     if (!superDic[key]) superDic[key] = value;
                     break;
@@ -852,8 +852,8 @@ FOUNDATION_STATIC_INLINE id XZJSONEncodingRecursive(NSObject *model) {
                 subDic = nil;
             }
         } else {
-            if (!dic[propertyMeta->_mappedToKey]) {
-                dic[propertyMeta->_mappedToKey] = value;
+            if (!dic[propertyMeta->_JSONKey]) {
+                dic[propertyMeta->_JSONKey] = value;
             }
         }
     }];
@@ -866,7 +866,7 @@ FOUNDATION_STATIC_INLINE id XZJSONEncodingRecursive(NSObject *model) {
 }
 
 /// Add indent to string (exclude first line)
-static NSMutableString *ModelDescriptionAddIndent(NSMutableString *desc, NSUInteger indent) {
+FOUNDATION_STATIC_INLINE NSMutableString * _Nonnull ModelDescriptionAddIndent(NSMutableString * _Nonnull desc, NSUInteger indent) {
     for (NSUInteger i = 0, max = desc.length; i < max; i++) {
         unichar c = [desc characterAtIndex:i];
         if (c == '\n') {
@@ -881,7 +881,7 @@ static NSMutableString *ModelDescriptionAddIndent(NSMutableString *desc, NSUInte
 }
 
 /// Generaate a description string
-static NSString *ModelDescription(NSObject *model) {
+FOUNDATION_STATIC_INLINE NSString *ModelDescription(NSObject *model) {
     static const int kDescMaxLength = 100;
     if (!model) return @"<nil>";
     if (model == (id)kCFNull) return @"<null>";
@@ -956,10 +956,10 @@ static NSString *ModelDescription(NSObject *model) {
         default: {
             NSMutableString *desc = [NSMutableString new];
             [desc appendFormat:@"<%@: %p>", model.class, model];
-            if (modelMeta->_allPropertyMetas.count == 0) return desc;
+            if (modelMeta->_properties.count == 0) return desc;
             
             // sort property names
-            NSArray *properties = [modelMeta->_allPropertyMetas
+            NSArray *properties = [modelMeta->_properties
                                    sortedArrayUsingComparator:^NSComparisonResult(XZJSONPropertyDescriptor *p1, XZJSONPropertyDescriptor *p2) {
                                        return [p1->_name compare:p2->_name];
                                    }];

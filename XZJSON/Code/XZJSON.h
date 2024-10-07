@@ -17,8 +17,8 @@ XZ_JSON_STATIC_CLASS @interface XZJSON : NSObject
 /// 模型化 JSON 数据。
 /// - Parameters:
 ///   - json: JSON
-///   - aClass: 模型类
-///   - options: 解析JSON的选项，如果已解析，则此参数忽略
+///   - options: 解析JSON的选项，如果 JSON 已解析，则此参数忽略
+///   - class: 模型类
 + (nullable id)decode:(nullable id)json options:(NSJSONReadingOptions)options class:(Class)aClass;
 
 /// JSON 化实例模型。
@@ -43,7 +43,7 @@ XZ_JSON_STATIC_CLASS @interface XZJSON : NSObject
 @end
 
 
-@interface XZJSON (NSCoder)
+@interface XZJSON (XZExtenedJSON)
 
 @end
 
