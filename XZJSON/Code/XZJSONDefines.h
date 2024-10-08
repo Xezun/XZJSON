@@ -56,6 +56,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// }
 /// @end
 /// @endcode
+///
+/// @todo 如果属性对应的键不合法，那么该属性会在 JSON 处理中被忽略。
 @property (class, readonly, nullable) NSDictionary<NSString *, id> *mappingJSONCodingKeys;
 // `+ (nullable NSDictionary<NSString *, id> *)modelCustomPropertyMapper;`
 

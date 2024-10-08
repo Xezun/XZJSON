@@ -80,7 +80,7 @@ FOUNDATION_EXPORT XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding);
 ///
 /// Instance variable information.
 @interface XZObjcIvarDescriptor : NSObject
-@property (nonatomic, assign, readonly) Ivar identity;          ///< ivar opaque struct
+@property (nonatomic, assign, readonly) Ivar raw;          ///< ivar opaque struct
 @property (nonatomic, strong, readonly) NSString *name;         ///< Ivar's name
 @property (nonatomic, assign, readonly) ptrdiff_t offset;       ///< Ivar's offset
 @property (nonatomic, strong, readonly) NSString *typeEncoding; ///< Ivar's type encoding
@@ -94,7 +94,7 @@ FOUNDATION_EXPORT XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding);
 ///
 /// Method information.
 @interface XZObjcMethodDescriptor : NSObject
-@property (nonatomic, assign, readonly) Method identity;                ///< method opaque struct
+@property (nonatomic, assign, readonly) Method raw;                ///< method opaque struct
 @property (nonatomic, strong, readonly) NSString *name;                 ///< method name
 @property (nonatomic, assign, readonly) SEL sel;                        ///< method's selector
 @property (nonatomic, assign, readonly) IMP imp;                        ///< method's implementation
@@ -109,7 +109,7 @@ FOUNDATION_EXPORT XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding);
 ///
 /// Property information.
 @interface XZObjcPropertyDescriptor : NSObject
-@property (nonatomic, assign, readonly) objc_property_t identity;                   ///< property's opaque struct
+@property (nonatomic, assign, readonly) objc_property_t raw;                   ///< property's opaque struct
 @property (nonatomic, copy, readonly) NSString *name;                             ///< property's name
 @property (nonatomic, assign, readonly) XZObjcType type;                            ///< property's type
 @property (nonatomic, assign, readonly, nullable) Class subtype;                    ///< may be nil
@@ -128,11 +128,11 @@ FOUNDATION_EXPORT XZObjcType XZObjcTypeFromEncoding(const char *typeEncoding);
 @interface XZObjcClassDescriptor : NSObject
 
 /// 当前类，当前对象所描述的类。
-@property (nonatomic, assign, readonly) Class identity;
+@property (nonatomic, assign, readonly) Class raw;
 /// 描述当前类的超类的对象。
-@property (nonatomic, readonly, nullable) XZObjcClassDescriptor *super;
+@property (nonatomic, readonly, nullable) XZObjcClassDescriptor *superDescriptor;
 /// 描述当前类的元类的对象。
-@property (nonatomic, readonly, nullable) XZObjcClassDescriptor *meta;
+@property (nonatomic, readonly, nullable) XZObjcClassDescriptor *metaDescriptor;
 
 
 /// whether this class is meta class

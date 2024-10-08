@@ -31,7 +31,7 @@
     
     self = [super init];
     if (self) {
-        _identity     = ivar;
+        _raw     = ivar;
         _name         = [NSString stringWithUTF8String:name];
         _offset       = ivar_getOffset(ivar);
         _typeEncoding = [NSString stringWithUTF8String:typeEncoding];
@@ -61,7 +61,7 @@
     
     self = [super init];
     if (self) {
-        _identity   = method;
+        _raw   = method;
         _sel        = method_getName(method);
         _imp        = method_getImplementation(method);
         _name       = [NSString stringWithUTF8String:name];
@@ -201,7 +201,7 @@
     
     self = [super init];
     if (self != nil) {
-        _identity       = property;
+        _raw       = property;
         _name           = [NSString stringWithUTF8String:name];
         _type           = type;
         _subtype        = subtype;
@@ -224,14 +224,14 @@
     self = [super init];
     if (self) {
         _isValid = NO;
-        _identity = aClass;
+        _raw = aClass;
         
-        _super = [XZObjcClassDescriptor descriptorForClass:class_getSuperclass(aClass)];
+        _superDescriptor = [XZObjcClassDescriptor descriptorForClass:class_getSuperclass(aClass)];
         
         _isMeta = class_isMetaClass(aClass);
         if (!_isMeta) {
             Class const metaClass = objc_getMetaClass(class_getName(aClass));
-            _meta = [XZObjcClassDescriptor descriptorForClass:metaClass];
+            _metaDescriptor = [XZObjcClassDescriptor descriptorForClass:metaClass];
         }
         _name = NSStringFromClass(aClass);
         [self activateIfNeeded];
@@ -248,7 +248,7 @@
     _methods    = nil;
     _properties = nil;
     
-    Class cls = self.identity;
+    Class cls = self.raw;
     unsigned int methodCount = 0;
     Method *methods = class_copyMethodList(cls, &methodCount);
     if (methods) {

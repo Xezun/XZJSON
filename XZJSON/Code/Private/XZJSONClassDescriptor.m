@@ -60,7 +60,7 @@
     // Create all property metas.
     NSMutableDictionary * const namedProperties = [NSMutableDictionary new];
     XZObjcClassDescriptor *currentClass = aClass;
-    while (currentClass && currentClass.super != nil) { // recursive parse super class, but ignore root class (NSObject/NSProxy)
+    while (currentClass && currentClass.superDescriptor != nil) { // recursive parse super class, but ignore root class (NSObject/NSProxy)
         for (XZObjcPropertyDescriptor *aProperty in currentClass.properties.allValues) {
             if (!aProperty.name)                                                 continue;
             if (blockedKeys && [blockedKeys containsObject:aProperty.name])      continue;
@@ -71,7 +71,7 @@
             if (namedProperties[property->_name])         continue;
             namedProperties[property->_name] = property;
         }
-        currentClass = currentClass.super;
+        currentClass = currentClass.superDescriptor;
     }
     if (namedProperties.count) _properties = namedProperties.allValues.copy;
     
@@ -81,45 +81,53 @@
     NSMutableArray      *keyArrayProperties = [NSMutableArray new];
     
     if ([rawClass respondsToSelector:@selector(mappingJSONCodingKeys)]) {
-        NSDictionary *customMapper = [rawClass mappingJSONCodingKeys];
-        [customMapper enumerateKeysAndObjectsUsingBlock:^(NSString *propertyName, id const JSONKey, BOOL *stop) {
+        [[rawClass mappingJSONCodingKeys] enumerateKeysAndObjectsUsingBlock:^(NSString * const propertyName, id const JSONKey, BOOL *stop) {
             XZJSONPropertyDescriptor *property = namedProperties[propertyName];
             if (!property) return;
+            // TODO: 测试 JSONKey 不合法时，该属性是否会被忽略
             [namedProperties removeObjectForKey:propertyName];
             
             if ([JSONKey isKindOfClass:[NSString class]]) {
-                NSString * const stringJSONKey = JSONKey;
-                if (stringJSONKey.length == 0) return;
+                NSString * const stringKey = JSONKey;
+                if (stringKey.length == 0) return;
                 
-                property->_JSONKey = stringJSONKey;
+                property->_JSONKey = stringKey;
                 
-                if ([stringJSONKey containsString:@"."]) {
-                    NSArray *keyPath = [stringJSONKey componentsSeparatedByString:@"."];
-                    if ([keyPath containsObject:@""]) {
-                        NSMutableArray *arrayM = [keyPath mutableCopy];
+                if ([stringKey containsString:@"."]) {
+                    NSArray *keyPath = [stringKey componentsSeparatedByString:@"."];
+                    while ([keyPath containsObject:@""]) {
+                        NSMutableArray *arrayM = (NSMutableArray *)keyPath;
+                        if (![arrayM isKindOfClass:NSMutableArray.class]) {
+                            arrayM = [keyPath mutableCopy];
+                            keyPath = arrayM;
+                        }
                         [arrayM removeObject:@""];
-                        keyPath = arrayM;
                     }
+                    
                     if (keyPath.count > 1) {
                         property->_JSONKeyPath = keyPath;
                         [keyPathProperties addObject:property];
                     }
                 }
                 
-                property->_next = keyProperties[stringJSONKey];
-                keyProperties[stringJSONKey] = property;
+                property->_next = keyProperties[stringKey];
+                keyProperties[stringKey] = property;
             } else if ([JSONKey isKindOfClass:[NSArray class]]) {
+                NSArray * const arrayKey = JSONKey;
                 
                 NSMutableArray *JSONKeyArray = [NSMutableArray new];
-                for (NSString *key in ((NSArray *)JSONKey)) {
+                for (NSString *key in arrayKey) {
                     if (![key isKindOfClass:[NSString class]]) continue;
                     if (key.length == 0) continue;
                     
                     NSArray *keyPath = [key componentsSeparatedByString:@"."];
-                    if ([keyPath containsObject:@""]) {
-                        NSMutableArray *arrayM = [keyPath mutableCopy];
+                    while ([keyPath containsObject:@""]) {
+                        NSMutableArray *arrayM = (NSMutableArray *)keyPath;
+                        if (![arrayM isKindOfClass:NSMutableArray.class]) {
+                            arrayM = [keyPath mutableCopy];
+                            keyPath = arrayM;
+                        }
                         [arrayM removeObject:@""];
-                        keyPath = arrayM;
                     }
                     
                     if (keyPath.count > 1) {
@@ -128,18 +136,20 @@
                         [JSONKeyArray addObject:key];
                     }
                     
+                    // 数组中的第一个 key
                     if (!property->_JSONKey) {
                         property->_JSONKey = key;
                         property->_JSONKeyPath = keyPath.count > 1 ? keyPath : nil;
                     }
+                    
+                    // TODO: YYModel 源代码有问题，此处待验证
+                    property->_next = keyProperties[key];
+                    keyProperties[key] = property;
                 }
                 if (!property->_JSONKey) return;
                 
                 property->_JSONKeyArray = JSONKeyArray;
                 [keyArrayProperties addObject:property];
-                
-                property->_next = keyProperties[JSONKey];
-                keyProperties[JSONKey] = property;
             }
         }];
     }
@@ -154,7 +164,7 @@
     if (keyPathProperties)      _keyPathProperties  = keyPathProperties;
     if (keyArrayProperties)     _keyArrayProperties = keyArrayProperties;
     
-    _descriptor = aClass;
+    _class = aClass;
     _numberOfProperties = _properties.count;
     _nsType = XZJSONEncodingNSTypeFromClass(rawClass);
     
@@ -186,7 +196,7 @@
     XZJSONClassDescriptor *descriptor = CFDictionaryGetValue(_cachedDescriptors, (__bridge const void *)(aClass));
     dispatch_semaphore_signal(_lock);
     
-    if (!descriptor || descriptor->_descriptor.isValid) {
+    if (!descriptor || descriptor->_class.isValid) {
         descriptor = [[XZJSONClassDescriptor alloc] initWithClass:aClass];
         if (descriptor) {
             dispatch_semaphore_wait(_lock, DISPATCH_TIME_FOREVER);

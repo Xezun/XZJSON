@@ -17,7 +17,7 @@ NS_ASSUME_NONNULL_BEGIN
 @interface XZJSONClassDescriptor : NSObject {
     @package
     /// 描述类信息的对象。
-    XZObjcClassDescriptor *_descriptor;
+    XZObjcClassDescriptor *_class;
     /// 所有可模型化或序列化的属性。Array, all property meta of this model.
     NSArray<XZJSONPropertyDescriptor *> *_properties;
     /// 所有可模型化或序列化的属性的数量。The number of mapped key (and key path), same to _mapper.count.

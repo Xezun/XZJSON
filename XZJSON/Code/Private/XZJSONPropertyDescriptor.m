@@ -24,9 +24,9 @@
     }
     
     XZJSONPropertyDescriptor *descriptor = [self new];
+    descriptor->_property     = property;
     descriptor->_name         = property.name;
     descriptor->_type         = property.type;
-    descriptor->_descriptor   = property;
     descriptor->_elementClass = elementClass;
     
     if ((descriptor->_type & XZObjcTypeMask) == XZObjcTypeObject) {
@@ -63,11 +63,11 @@
     }
     descriptor->_class = property.subtype;
     
-    if ([aClass.identity instancesRespondToSelector:property.getter]) {
+    if ([aClass.raw instancesRespondToSelector:property.getter]) {
         descriptor->_getter = property.getter;
     }
     
-    if ([aClass.identity instancesRespondToSelector:property.setter]) {
+    if ([aClass.raw instancesRespondToSelector:property.setter]) {
         descriptor->_setter = property.setter;
     }
     
