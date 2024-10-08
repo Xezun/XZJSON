@@ -166,7 +166,7 @@
     if ([model isKindOfClass:[NSURL class]]) return ((NSURL *)model).absoluteString;
     if ([model isKindOfClass:[NSAttributedString class]]) return ((NSAttributedString *)model).string;
     // TODO: DateFormatter
-    if ([model isKindOfClass:[NSDate class]]) return [YYISODateFormatter() stringFromDate:(id)model];
+    if ([model isKindOfClass:[NSDate class]]) return [XZJSONDateFormatter() stringFromDate:(id)model];
     if ([model isKindOfClass:[NSData class]]) return nil;
     
     // === 数据模型 ===
@@ -195,33 +195,29 @@
 }
 
 // yy_modelSetWithDictionary
-+ (void)object:(id)object decodeWithDictionary:(NSDictionary *)dictionary descriptor:(XZJSONClassDescriptor *)modelMeta {
-    if (modelMeta->_numberOfProperties == 0) return;
++ (void)object:(id)object decodeWithDictionary:(NSDictionary *)dictionary descriptor:(XZJSONClassDescriptor *)descriptor {
+    if (descriptor->_numberOfProperties == 0) return;
    
-    XZJSONEncodingContext context = {0};
-    context.descriptor = (__bridge void *)(modelMeta);
+    XZJSONCodingContext context = {0};
+    context.descriptor = (__bridge void *)(descriptor);
     context.model      = (__bridge void *)(object);
     context.dictionary = (__bridge void *)(dictionary);
     
-    if (modelMeta->_numberOfProperties >= CFDictionaryGetCount((CFDictionaryRef)dictionary)) {
-        CFDictionaryApplyFunction((CFDictionaryRef)dictionary, XZJSONDecodingDictionaryEnumeratorFunction, &context);
-        if (modelMeta->_keyPathProperties) {
-            CFArrayApplyFunction((CFArrayRef)modelMeta->_keyPathProperties,
-                                 CFRangeMake(0, CFArrayGetCount((CFArrayRef)modelMeta->_keyPathProperties)),
-                                 XZJSONDecodingArrayEnumeratorFunction,
-                                 &context);
+    if (descriptor->_numberOfProperties >= CFDictionaryGetCount((CFDictionaryRef)dictionary)) {
+        CFDictionaryApplyFunction((CFDictionaryRef)dictionary, XZJSONDecodingDictionaryEnumerator, &context);
+        
+        if (descriptor->_keyPathProperties) {
+            CFRange const range = CFRangeMake(0, CFArrayGetCount((CFArrayRef)descriptor->_keyPathProperties));
+            CFArrayApplyFunction((CFArrayRef)descriptor->_keyPathProperties, range, XZJSONDecodingArrayEnumerator, &context);
         }
-        if (modelMeta->_keyArrayProperties) {
-            CFArrayApplyFunction((CFArrayRef)modelMeta->_keyArrayProperties,
-                                 CFRangeMake(0, CFArrayGetCount((CFArrayRef)modelMeta->_keyArrayProperties)),
-                                 XZJSONDecodingArrayEnumeratorFunction,
-                                 &context);
+        
+        if (descriptor->_keyArrayProperties) {
+            CFRange const range = CFRangeMake(0, CFArrayGetCount((CFArrayRef)descriptor->_keyArrayProperties));
+            CFArrayApplyFunction((CFArrayRef)descriptor->_keyArrayProperties, range, XZJSONDecodingArrayEnumerator, &context);
         }
     } else {
-        CFArrayApplyFunction((CFArrayRef)modelMeta->_properties,
-                             CFRangeMake(0, modelMeta->_numberOfProperties),
-                             XZJSONDecodingArrayEnumeratorFunction,
-                             &context);
+        CFRange const range = CFRangeMake(0, descriptor->_numberOfProperties);
+        CFArrayApplyFunction((CFArrayRef)descriptor->_properties, range, XZJSONDecodingArrayEnumerator, &context);
     }
 }
 
@@ -384,7 +380,7 @@
         if (propertyMeta->_isCNumber) {
             NSNumber *value = [aDecoder decodeObjectForKey:propertyMeta->_name];
             if ([value isKindOfClass:[NSNumber class]]) {
-                ModelSetNumberToProperty(object, value, propertyMeta);
+                XZJSONNSDecodingNumberForProperty(object, value, propertyMeta);
                 [value class];
             }
         } else {
@@ -457,7 +453,7 @@
 }
 
 + (BOOL)objectDescription:(id)object {
-    return ModelDescription(object);
+    return XZJSONDescription(object);
 }
 
 + (id)objectCopy:(id)object {

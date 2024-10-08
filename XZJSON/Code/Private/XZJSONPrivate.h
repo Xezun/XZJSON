@@ -80,9 +80,9 @@ FOUNDATION_STATIC_INLINE NSNumber * _Nullable XZJSONMakeNSNumber(__unsafe_unreta
 
 /// Parse string to date.
 FOUNDATION_STATIC_INLINE NSDate * _Nonnull XZJSONMakeNSDate(__unsafe_unretained NSString * _Nonnull string) {
-    typedef NSDate* (^YYNSDateParseBlock)(NSString *string);
+    typedef NSDate* (^XZJSONDateParser)(NSString *string);
     #define kParserNum 34
-    static YYNSDateParseBlock blocks[kParserNum + 1] = {0};
+    static XZJSONDateParser blocks[kParserNum + 1] = {0};
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         {
@@ -183,14 +183,14 @@ FOUNDATION_STATIC_INLINE NSDate * _Nonnull XZJSONMakeNSDate(__unsafe_unretained 
     });
     if (!string) return nil;
     if (string.length > kParserNum) return nil;
-    YYNSDateParseBlock parser = blocks[string.length];
+    XZJSONDateParser parser = blocks[string.length];
     if (!parser) return nil;
     return parser(string);
     #undef kParserNum
 }
 
 /// Get the 'NSBlock' class.
-FOUNDATION_STATIC_INLINE Class _Nonnull YYNSBlockClass(void) {
+FOUNDATION_STATIC_INLINE Class _Nonnull XZJSONGetBlockClass(void) {
     static Class cls;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
@@ -265,7 +265,7 @@ FOUNDATION_STATIC_INLINE NSNumber * _Nullable XZJSONEncodeNumberForProperty(__un
  @param num   Can be nil.
  @param meta  Should not be nil, meta.isCNumber should be YES, meta.setter should not be nil.
  */
-FOUNDATION_STATIC_INLINE void ModelSetNumberToProperty(__unsafe_unretained id _Nonnull model, __unsafe_unretained NSNumber * _Nonnull num, __unsafe_unretained XZJSONPropertyDescriptor * _Nonnull meta) {
+FOUNDATION_STATIC_INLINE void XZJSONNSDecodingNumberForProperty(__unsafe_unretained id _Nonnull model, __unsafe_unretained NSNumber * _Nonnull num, __unsafe_unretained XZJSONPropertyDescriptor * _Nonnull meta) {
     switch (meta->_type & XZObjcTypeMask) {
         case XZObjcTypeBool: {
             ((void (*)(id, SEL, bool))(void *) objc_msgSend)((id)model, meta->_setter, num.boolValue);
@@ -321,6 +321,48 @@ FOUNDATION_STATIC_INLINE void ModelSetNumberToProperty(__unsafe_unretained id _N
     }
 }
 
+
+
+/// Get the value with key paths from dictionary
+/// The dic should be NSDictionary, and the keyPath should not be nil.
+FOUNDATION_STATIC_INLINE id _Nullable XZJSONDecodingGetValueWithKeyPath(__unsafe_unretained NSDictionary * _Nonnull dic, __unsafe_unretained NSArray * _Nonnull keyPaths) {
+    id value = nil;
+    for (NSUInteger i = 0, max = keyPaths.count; i < max; i++) {
+        value = dic[keyPaths[i]];
+        if (i + 1 < max) {
+            if ([value isKindOfClass:[NSDictionary class]]) {
+                dic = value;
+            } else {
+                return nil;
+            }
+        }
+    }
+    return value;
+}
+
+/// Get the value with multi key (or key path) from dictionary
+/// The dic should be NSDictionary
+FOUNDATION_STATIC_INLINE id _Nullable XZJSONDecodingGetValueWithKeyArray(__unsafe_unretained NSDictionary * _Nonnull dic, __unsafe_unretained NSArray * _Nonnull multiKeys) {
+    id value = nil;
+    for (NSString *key in multiKeys) {
+        if ([key isKindOfClass:[NSString class]]) {
+            value = dic[key];
+            if (value) break;
+        } else {
+            value = XZJSONDecodingGetValueWithKeyPath(dic, (NSArray *)key);
+            if (value) break;
+        }
+    }
+    return value;
+}
+
+
+typedef struct {
+    void * _Nonnull descriptor;  ///< XZJSONObjcClassMeta
+    void * _Nonnull model;      ///< id (self)
+    void * _Nonnull dictionary; ///< NSDictionary (json)
+} XZJSONCodingContext;
+
 /**
  Set value to model with a property meta.
  
@@ -333,7 +375,7 @@ FOUNDATION_STATIC_INLINE void ModelSetNumberToProperty(__unsafe_unretained id _N
 FOUNDATION_STATIC_INLINE void XZJSONDecodeValueForProperty(__unsafe_unretained id _Nonnull model, __unsafe_unretained id _Nonnull value, __unsafe_unretained XZJSONPropertyDescriptor * _Nonnull meta) {
     if (meta->_isCNumber) {
         NSNumber *num = XZJSONMakeNSNumber(value);
-        ModelSetNumberToProperty(model, num, meta);
+        XZJSONNSDecodingNumberForProperty(model, num, meta);
         if (num) [num class]; // hold the number
     } else if (meta->_nsType) {
         if (value == (id)kCFNull) {
@@ -584,7 +626,7 @@ FOUNDATION_STATIC_INLINE void XZJSONDecodeValueForProperty(__unsafe_unretained i
             case XZObjcTypeBlock: {
                 if (isNull) {
                     ((void (*)(id, SEL, void (^)(void)))(void *) objc_msgSend)((id)model, meta->_setter, (void (^)(void))NULL);
-                } else if ([value isKindOfClass:YYNSBlockClass()]) {
+                } else if ([value isKindOfClass:XZJSONGetBlockClass()]) {
                     ((void (*)(id, SEL, void (^)(void)))(void *) objc_msgSend)((id)model, meta->_setter, (void (^)(void))value);
                 }
             } break;
@@ -618,46 +660,6 @@ FOUNDATION_STATIC_INLINE void XZJSONDecodeValueForProperty(__unsafe_unretained i
     }
 }
 
-/// Get the value with key paths from dictionary
-/// The dic should be NSDictionary, and the keyPath should not be nil.
-FOUNDATION_STATIC_INLINE id _Nullable YYValueForKeyPath(__unsafe_unretained NSDictionary * _Nonnull dic, __unsafe_unretained NSArray * _Nonnull keyPaths) {
-    id value = nil;
-    for (NSUInteger i = 0, max = keyPaths.count; i < max; i++) {
-        value = dic[keyPaths[i]];
-        if (i + 1 < max) {
-            if ([value isKindOfClass:[NSDictionary class]]) {
-                dic = value;
-            } else {
-                return nil;
-            }
-        }
-    }
-    return value;
-}
-
-/// Get the value with multi key (or key path) from dictionary
-/// The dic should be NSDictionary
-FOUNDATION_STATIC_INLINE id _Nullable YYValueForMultiKeys(__unsafe_unretained NSDictionary * _Nonnull dic, __unsafe_unretained NSArray * _Nonnull multiKeys) {
-    id value = nil;
-    for (NSString *key in multiKeys) {
-        if ([key isKindOfClass:[NSString class]]) {
-            value = dic[key];
-            if (value) break;
-        } else {
-            value = YYValueForKeyPath(dic, (NSArray *)key);
-            if (value) break;
-        }
-    }
-    return value;
-}
-
-
-typedef struct {
-    void * _Nonnull descriptor;  ///< XZJSONObjcClassMeta
-    void * _Nonnull model;      ///< id (self)
-    void * _Nonnull dictionary; ///< NSDictionary (json)
-} XZJSONEncodingContext;
-
 /**
  Apply function for dictionary, to set the key-value pair to model.
  
@@ -665,8 +667,8 @@ typedef struct {
  @param _value   should not be nil.
  @param _context _context.modelMeta and _context.model should not be nil.
  */
-FOUNDATION_STATIC_INLINE void XZJSONDecodingDictionaryEnumeratorFunction(const void * _Nonnull _key, const void * _Nonnull _value, void * _Nonnull _context) {
-    XZJSONEncodingContext *context = _context;
+FOUNDATION_STATIC_INLINE void XZJSONDecodingDictionaryEnumerator(const void * _Nonnull _key, const void * _Nonnull _value, void * _Nonnull _context) {
+    XZJSONCodingContext *context = _context;
     __unsafe_unretained XZJSONClassDescriptor *meta = (__bridge XZJSONClassDescriptor *)(context->descriptor);
     __unsafe_unretained XZJSONPropertyDescriptor *propertyMeta = [meta->_keyProperties objectForKey:(__bridge id)(_key)];
     __unsafe_unretained id model = (__bridge id)(context->model);
@@ -684,17 +686,17 @@ FOUNDATION_STATIC_INLINE void XZJSONDecodingDictionaryEnumeratorFunction(const v
  @param _propertyMeta should not be nil, XZJSONObjcPropertyMeta.
  @param _context      _context.model and _context.dictionary should not be nil.
  */
-FOUNDATION_STATIC_INLINE void XZJSONDecodingArrayEnumeratorFunction(const void * _Nonnull _propertyMeta, void * _Nonnull _context) {
-    XZJSONEncodingContext *context = _context;
+FOUNDATION_STATIC_INLINE void XZJSONDecodingArrayEnumerator(const void * _Nonnull _propertyMeta, void * _Nonnull _context) {
+    XZJSONCodingContext *context = _context;
     __unsafe_unretained NSDictionary *dictionary = (__bridge NSDictionary *)(context->dictionary);
     __unsafe_unretained XZJSONPropertyDescriptor *propertyMeta = (__bridge XZJSONPropertyDescriptor *)(_propertyMeta);
     if (!propertyMeta->_setter) return;
     id value = nil;
     
     if (propertyMeta->_JSONKeyArray) {
-        value = YYValueForMultiKeys(dictionary, propertyMeta->_JSONKeyArray);
+        value = XZJSONDecodingGetValueWithKeyArray(dictionary, propertyMeta->_JSONKeyArray);
     } else if (propertyMeta->_JSONKeyPath) {
-        value = YYValueForKeyPath(dictionary, propertyMeta->_JSONKeyPath);
+        value = XZJSONDecodingGetValueWithKeyPath(dictionary, propertyMeta->_JSONKeyPath);
     } else {
         value = [dictionary objectForKey:propertyMeta->_JSONKey];
     }
@@ -721,7 +723,7 @@ FOUNDATION_STATIC_INLINE void XZJSONDecodingArrayEnumeratorFunction(const void *
  
  length: 20/24/25
  */
-FOUNDATION_STATIC_INLINE NSDateFormatter * _Nonnull YYISODateFormatter(void) {
+FOUNDATION_STATIC_INLINE NSDateFormatter * _Nonnull XZJSONDateFormatter(void) {
     static NSDateFormatter *formatter = nil;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
@@ -789,7 +791,7 @@ FOUNDATION_STATIC_INLINE id _Nonnull XZJSONEncodingRecursive(NSObject * _Nonnull
     }
     if ([model isKindOfClass:[NSURL class]]) return ((NSURL *)model).absoluteString;
     if ([model isKindOfClass:[NSAttributedString class]]) return ((NSAttributedString *)model).string;
-    if ([model isKindOfClass:[NSDate class]]) return [YYISODateFormatter() stringFromDate:(id)model];
+    if ([model isKindOfClass:[NSDate class]]) return [XZJSONDateFormatter() stringFromDate:(id)model];
     if ([model isKindOfClass:[NSData class]]) return nil;
     
     
@@ -866,7 +868,7 @@ FOUNDATION_STATIC_INLINE id _Nonnull XZJSONEncodingRecursive(NSObject * _Nonnull
 }
 
 /// Add indent to string (exclude first line)
-FOUNDATION_STATIC_INLINE NSMutableString * _Nonnull ModelDescriptionAddIndent(NSMutableString * _Nonnull desc, NSUInteger indent) {
+FOUNDATION_STATIC_INLINE NSMutableString * _Nonnull XZJSONDescriptionWithIndent(NSMutableString * _Nonnull desc, NSUInteger indent) {
     for (NSUInteger i = 0, max = desc.length; i < max; i++) {
         unichar c = [desc characterAtIndex:i];
         if (c == '\n') {
@@ -881,7 +883,7 @@ FOUNDATION_STATIC_INLINE NSMutableString * _Nonnull ModelDescriptionAddIndent(NS
 }
 
 /// Generaate a description string
-FOUNDATION_STATIC_INLINE NSString * _Nonnull ModelDescription(NSObject * _Nonnull model) {
+FOUNDATION_STATIC_INLINE NSString * _Nonnull XZJSONDescription(NSObject * _Nonnull model) {
     static const int kDescMaxLength = 100;
     if (!model) return @"<nil>";
     if (model == (id)kCFNull) return @"<null>";
@@ -925,7 +927,7 @@ FOUNDATION_STATIC_INLINE NSString * _Nonnull ModelDescription(NSObject * _Nonnul
                 for (NSUInteger i = 0, max = array.count; i < max; i++) {
                     NSObject *obj = array[i];
                     [desc appendString:@"    "];
-                    [desc appendString:ModelDescriptionAddIndent(ModelDescription(obj).mutableCopy, 1)];
+                    [desc appendString:XZJSONDescriptionWithIndent(XZJSONDescription(obj).mutableCopy, 1)];
                     [desc appendString:(i + 1 == max) ? @"\n" : @";\n"];
                 }
                 [desc appendString:@"]"];
@@ -945,7 +947,7 @@ FOUNDATION_STATIC_INLINE NSString * _Nonnull ModelDescription(NSObject * _Nonnul
                     NSString *key = keys[i];
                     NSObject *value = dic[key];
                     [desc appendString:@"    "];
-                    [desc appendFormat:@"%@ = %@",key, ModelDescriptionAddIndent(ModelDescription(value).mutableCopy, 1)];
+                    [desc appendFormat:@"%@ = %@",key, XZJSONDescriptionWithIndent(XZJSONDescription(value).mutableCopy, 1)];
                     [desc appendString:(i + 1 == max) ? @"\n" : @";\n"];
                 }
                 [desc appendString:@"}"];
@@ -975,7 +977,7 @@ FOUNDATION_STATIC_INLINE NSString * _Nonnull ModelDescription(NSObject * _Nonnul
                     switch (property->_type & XZObjcTypeMask) {
                         case XZObjcTypeObject: {
                             id v = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, property->_getter);
-                            propertyDesc = ModelDescription(v);
+                            propertyDesc = XZJSONDescription(v);
                             if (!propertyDesc) propertyDesc = @"<nil>";
                         } break;
                         case XZObjcTypeClass: {
@@ -1004,7 +1006,7 @@ FOUNDATION_STATIC_INLINE NSString * _Nonnull ModelDescription(NSObject * _Nonnul
                     }
                 }
                 
-                propertyDesc = ModelDescriptionAddIndent(propertyDesc.mutableCopy, 1);
+                propertyDesc = XZJSONDescriptionWithIndent(propertyDesc.mutableCopy, 1);
                 [desc appendFormat:@"    %@ = %@",property->_name, propertyDesc];
                 [desc appendString:(i + 1 == max) ? @"\n" : @";\n"];
             }
