@@ -25,9 +25,9 @@ NS_ASSUME_NONNULL_BEGIN
     /// JSON 键与属性的映射。Key:mapped key and key path, Value:XZJSONObjcPropertyMeta.
     NSDictionary<NSString *, XZJSONPropertyDescriptor *> *_keyProperties;
     /// JSON 键值路径与属性的映射。Array<XZJSONObjcPropertyMeta>, property meta which is mapped to a key path.
-    NSArray *_keyPathProperties;
+    NSArray<XZJSONPropertyDescriptor *> *_keyPathProperties;
     /// 多个 JSON 键与属性的映射。Array<XZJSONObjcPropertyMeta>, property meta which is mapped to multi keys.
-    NSArray *_keyArrayProperties;
+    NSArray<XZJSONPropertyDescriptor *> *_keyArrayProperties;
     /// 如果是，原生对象的类型。 Model class type.
     XZJSONEncodingNSType _nsType;
     
