@@ -135,14 +135,22 @@
 }
 
 /// 将 原生或自定义的数据实例对象 模型化为 JSON基础数据类型。
-+ (id)_encodeObject:(id)model dictionary:(nullable NSMutableDictionary *)dictionary {
++ (id)_encodeObject:(nonnull id)model dictionary:(nullable NSMutableDictionary *)dictionary {
     // === 原生数据 ===
-    if (!model || model == (id)kCFNull) return model;
-    if ([model isKindOfClass:[NSString class]]) return model;
-    if ([model isKindOfClass:[NSNumber class]]) return model;
+    if (model == (id)kCFNull) {
+        return model;
+    }
+    if ([model isKindOfClass:[NSString class]]) {
+        return model;
+    }
+    if ([model isKindOfClass:[NSNumber class]]) {
+        return model;
+    }
     if ([model isKindOfClass:[NSDictionary class]]) {
         NSDictionary * const dict = model;
-        if ([NSJSONSerialization isValidJSONObject:dict]) return dict;
+        if ([NSJSONSerialization isValidJSONObject:dict]) {
+            return dict;
+        }
         NSMutableDictionary *dictM = [NSMutableDictionary dictionaryWithCapacity:dict.count];
         [dict enumerateKeysAndObjectsUsingBlock:^(NSString *key, id obj, BOOL *stop) {
             NSString * const stringKey = [key isKindOfClass:[NSString class]] ? key : key.description;
@@ -199,11 +207,11 @@
 
 + (void)object:(id)object decodeWithDictionary:(NSDictionary *)dictionary {
     XZJSONClassDescriptor * const descriptor = [XZJSONClassDescriptor descriptorForClass:[object class]];
-    [self object:object decodeWithDictionary:dictionary descriptor:descriptor];
+    [self _object:object decodeWithDictionary:dictionary descriptor:descriptor];
 }
 
 // yy_modelSetWithDictionary
-+ (void)object:(id)object decodeWithDictionary:(NSDictionary *)dictionary descriptor:(XZJSONClassDescriptor *)descriptor {
++ (void)_object:(id)object decodeWithDictionary:(NSDictionary *)dictionary descriptor:(XZJSONClassDescriptor *)descriptor {
     if (descriptor->_numberOfProperties == 0) return;
    
     XZJSONCodingContext context = {0};
@@ -269,7 +277,7 @@
         id value = nil;
         if (propertyMeta->_isCNumber) {
             // 标量数字
-            value = XZJSONEncodeNumberForProperty(model, propertyMeta);
+            value = XZJSONEncodeNSNumberForProperty(model, propertyMeta);
         } else if (propertyMeta->_nsType) {
             // 原生类型
             id const nsValue = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
@@ -335,7 +343,7 @@
         if (!propertyMeta->_getter) return;
         
         if (propertyMeta->_isCNumber) {
-            NSNumber *value = XZJSONEncodeNumberForProperty(object, propertyMeta);
+            NSNumber *value = XZJSONEncodeNSNumberForProperty(object, propertyMeta);
             if (value) [aCoder encodeObject:value forKey:propertyMeta->_name];
         } else {
             switch (propertyMeta->_type & XZObjcTypeMask) {
@@ -388,7 +396,7 @@
         if (propertyMeta->_isCNumber) {
             NSNumber *value = [aDecoder decodeObjectForKey:propertyMeta->_name];
             if ([value isKindOfClass:[NSNumber class]]) {
-                XZJSONNSDecodingNumberForProperty(object, value, propertyMeta);
+                XZJSONDecodeNSNumberForProperty(object, value, propertyMeta);
                 [value class];
             }
         } else {

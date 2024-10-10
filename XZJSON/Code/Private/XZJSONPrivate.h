@@ -16,16 +16,21 @@
 + (nullable id)_decodeObject:(nonnull id)object class:(nonnull Class)aClass;
 @end
 
+#pragma mark ----------
+
 /// Parse a number value from 'id'.
-FOUNDATION_STATIC_INLINE NSNumber * _Nullable XZJSONMakeNSNumber(__unsafe_unretained id _Nullable value) {
-    if (!value || value == (id)kCFNull) return nil;
+FOUNDATION_STATIC_INLINE NSNumber * _Nullable NSNumberFromJSONValue(id _Nullable value) {
+    if (!value || value == (id)kCFNull) {
+        return nil;
+    }
+    if ([value isKindOfClass:[NSNumber class]]) {
+        return value;
+    }
     
-    static NSCharacterSet *_numberDotCharacter;
-    static NSDictionary   *_numberStrings;
+    static NSDictionary<NSString *, NSNumber *> *_numberStrings;
     
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        _numberDotCharacter = [NSCharacterSet characterSetWithRange:NSMakeRange('.', 1)];
         _numberStrings = @{
             @"TRUE" :   @(YES),
             @"True" :   @(YES),
@@ -54,30 +59,33 @@ FOUNDATION_STATIC_INLINE NSNumber * _Nullable XZJSONMakeNSNumber(__unsafe_unreta
         };
     });
     
-    if ([value isKindOfClass:[NSNumber class]]) return value;
+    
     if ([value isKindOfClass:[NSString class]]) {
-        NSNumber *number = _numberStrings[value];
+        NSNumber * const number = _numberStrings[value];
+        if (number == (id)kCFNull) {
+            return nil;
+        }
         if (number) {
-            if (number == (id)kCFNull) return nil;
             return number;
         }
-        if ([(NSString *)value rangeOfCharacterFromSet:_numberDotCharacter].location != NSNotFound) {
-            const char * const string = ((NSString *)value).UTF8String;
-            if (!string) return nil;
-            double const number = atof(string);
-            if (isnan(number) || isinf(number)) return nil;
-            return @(number);
-        } else {
-            const char * const string = ((NSString *)value).UTF8String;
-            if (!string) return nil;
-            return @(atoll(string));
+        const char * const string = ((NSString *)value).UTF8String;
+        if (string == NULL) {
+            return nil;
         }
+        if (strchr(string, '.')) {
+            double const number = atof(string);
+            if (isnan(number) || isinf(number)) {
+                return nil;
+            }
+            return @(number);
+        }
+        return @(atoll(string));
     }
     return nil;
 }
 
 /// Parse string to date.
-FOUNDATION_STATIC_INLINE NSDate * _Nonnull XZJSONMakeNSDate(__unsafe_unretained NSString * _Nonnull string) {
+FOUNDATION_STATIC_INLINE NSDate * _Nonnull NSDateFromJSONValue(__unsafe_unretained NSString * _Nonnull string) {
     typedef NSDate* (^XZJSONDateParser)(NSString *string);
     #define kParserNum 34
     static XZJSONDateParser blocks[kParserNum + 1] = {0};
@@ -208,7 +216,7 @@ FOUNDATION_STATIC_INLINE Class _Nonnull XZJSONGetBlockClass(void) {
  @param meta  Should not be nil, meta.isCNumber should be YES, meta.getter should not be nil.
  @return A number object, or nil if failed.
  */
-FOUNDATION_STATIC_INLINE NSNumber * _Nullable XZJSONEncodeNumberForProperty(__unsafe_unretained id _Nonnull model, __unsafe_unretained XZJSONPropertyDescriptor * _Nonnull meta) {
+FOUNDATION_STATIC_INLINE NSNumber * _Nullable XZJSONEncodeNSNumberForProperty(__unsafe_unretained id _Nonnull model, __unsafe_unretained XZJSONPropertyDescriptor * _Nonnull meta) {
     switch (meta->_type & XZObjcTypeMask) {
         case XZObjcTypeBool: {
             return @(((bool (*)(id, SEL))(void *) objc_msgSend)((id)model, meta->_getter));
@@ -263,59 +271,72 @@ FOUNDATION_STATIC_INLINE NSNumber * _Nullable XZJSONEncodeNumberForProperty(__un
  @param num   Can be nil.
  @param meta  Should not be nil, meta.isCNumber should be YES, meta.setter should not be nil.
  */
-FOUNDATION_STATIC_INLINE void XZJSONNSDecodingNumberForProperty(__unsafe_unretained id _Nonnull model, __unsafe_unretained NSNumber * _Nonnull num, __unsafe_unretained XZJSONPropertyDescriptor * _Nonnull meta) {
+FOUNDATION_STATIC_INLINE void XZJSONDecodeNSNumberForProperty(__unsafe_unretained id _Nonnull model, __unsafe_unretained NSNumber * _Nonnull num, __unsafe_unretained XZJSONPropertyDescriptor * _Nonnull meta) {
     switch (meta->_type & XZObjcTypeMask) {
         case XZObjcTypeBool: {
             ((void (*)(id, SEL, bool))(void *) objc_msgSend)((id)model, meta->_setter, num.boolValue);
-        } break;
+            break;
+        }
         case XZObjcTypeInt8: {
             ((void (*)(id, SEL, int8_t))(void *) objc_msgSend)((id)model, meta->_setter, (int8_t)num.charValue);
-        } break;
+            break;
+        }
         case XZObjcTypeUInt8: {
             ((void (*)(id, SEL, uint8_t))(void *) objc_msgSend)((id)model, meta->_setter, (uint8_t)num.unsignedCharValue);
-        } break;
+            break;
+        }
         case XZObjcTypeInt16: {
             ((void (*)(id, SEL, int16_t))(void *) objc_msgSend)((id)model, meta->_setter, (int16_t)num.shortValue);
-        } break;
+            break;
+        }
         case XZObjcTypeUInt16: {
             ((void (*)(id, SEL, uint16_t))(void *) objc_msgSend)((id)model, meta->_setter, (uint16_t)num.unsignedShortValue);
-        } break;
+            break;
+        }
         case XZObjcTypeInt32: {
             ((void (*)(id, SEL, int32_t))(void *) objc_msgSend)((id)model, meta->_setter, (int32_t)num.intValue);
         }
         case XZObjcTypeUInt32: {
             ((void (*)(id, SEL, uint32_t))(void *) objc_msgSend)((id)model, meta->_setter, (uint32_t)num.unsignedIntValue);
-        } break;
+            break;
+        }
         case XZObjcTypeInt64: {
             if ([num isKindOfClass:[NSDecimalNumber class]]) {
                 ((void (*)(id, SEL, int64_t))(void *) objc_msgSend)((id)model, meta->_setter, (int64_t)num.stringValue.longLongValue);
             } else {
                 ((void (*)(id, SEL, uint64_t))(void *) objc_msgSend)((id)model, meta->_setter, (uint64_t)num.longLongValue);
             }
-        } break;
+            break;
+        }
         case XZObjcTypeUInt64: {
             if ([num isKindOfClass:[NSDecimalNumber class]]) {
                 ((void (*)(id, SEL, int64_t))(void *) objc_msgSend)((id)model, meta->_setter, (int64_t)num.stringValue.longLongValue);
             } else {
                 ((void (*)(id, SEL, uint64_t))(void *) objc_msgSend)((id)model, meta->_setter, (uint64_t)num.unsignedLongLongValue);
             }
-        } break;
+            break;
+        }
         case XZObjcTypeFloat: {
             float f = num.floatValue;
             if (isnan(f) || isinf(f)) f = 0;
             ((void (*)(id, SEL, float))(void *) objc_msgSend)((id)model, meta->_setter, f);
-        } break;
+            break;
+        }
         case XZObjcTypeDouble: {
             double d = num.doubleValue;
             if (isnan(d) || isinf(d)) d = 0;
             ((void (*)(id, SEL, double))(void *) objc_msgSend)((id)model, meta->_setter, d);
-        } break;
+            break;
+        }
         case XZObjcTypeLongDouble: {
             long double d = num.doubleValue;
             if (isnan(d) || isinf(d)) d = 0;
             ((void (*)(id, SEL, long double))(void *) objc_msgSend)((id)model, meta->_setter, (long double)d);
-        } // break; commented for code coverage in next line
-        default: break;
+            break;
+        }
+        default: {
+            break;
+        }
     }
 }
 
@@ -361,6 +382,38 @@ typedef struct {
     void * _Nonnull dictionary; ///< NSDictionary (json)
 } XZJSONCodingContext;
 
+FOUNDATION_STATIC_INLINE NSString * _Nullable NSStringFromJSONValue(id _Nullable value) {
+    if (!value || value == (id)kCFNull) {
+        return nil;
+    }
+    if ([value isKindOfClass:NSString.class]) {
+        return value;
+    }
+    if ([value isKindOfClass:NSNumber.class]) {
+        NSNumber * const number = value;
+        return number.stringValue;
+    }
+    if ([value isKindOfClass:NSData.class]) {
+        return [[NSString alloc] initWithData:value encoding:NSUTF8StringEncoding];;
+    }
+    return nil;
+}
+
+FOUNDATION_STATIC_INLINE NSData * _Nullable NSDataFromJSONValue(id _Nullable value) {
+    if ([value isKindOfClass:NSString.class]) {
+        // base64 / hex string to data
+        if ([value hasPrefix:@"base64:"]) {
+            NSString *string = [value substringFromIndex:7];
+            return [[NSData alloc] initWithBase64EncodedString:string options:(NSDataBase64DecodingIgnoreUnknownCharacters)];
+        }
+        return [value dataUsingEncoding:(NSUTF8StringEncoding) allowLossyConversion:YES];
+    }
+    if ([value isKindOfClass:NSData.class]) {
+        return value;
+    }
+    return nil;
+}
+
 /**
  Set value to model with a property meta.
  
@@ -368,176 +421,152 @@ typedef struct {
  
  @param model Should not be nil.
  @param value Should not be nil, but can be NSNull.
- @param meta  Should not be nil, and meta->_setter should not be nil.
+ @param property  Should not be nil, and meta->_setter should not be nil.
  */
-FOUNDATION_STATIC_INLINE void XZJSONDecodeValueForProperty(__unsafe_unretained id _Nonnull model, __unsafe_unretained id _Nonnull value, __unsafe_unretained XZJSONPropertyDescriptor * _Nonnull meta) {
-    if (meta->_isCNumber) {
-        NSNumber *num = XZJSONMakeNSNumber(value);
-        XZJSONNSDecodingNumberForProperty(model, num, meta);
-        if (num) [num class]; // hold the number
-    } else if (meta->_nsType) {
+FOUNDATION_STATIC_INLINE void XZJSONDecodeValueForProperty(__unsafe_unretained id _Nonnull model, __unsafe_unretained id _Nonnull value, __unsafe_unretained XZJSONPropertyDescriptor * _Nonnull property) {
+    if (property->_isCNumber) {
+        NSNumber *num = NSNumberFromJSONValue(value);
+        XZJSONDecodeNSNumberForProperty(model, num, property);
+    } else if (property->_nsType) {
         if (value == (id)kCFNull) {
-            ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, (id)nil);
+            ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, (id)nil);
         } else {
-            switch (meta->_nsType) {
-                case XZJSONEncodingNSString:
+            switch (property->_nsType) {
+                case XZJSONEncodingNSString: {
+                    NSString * const string = NSStringFromJSONValue(value);
+                    ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, string);
+                    break;
+                }
                 case XZJSONEncodingNSMutableString: {
-                    if ([value isKindOfClass:[NSString class]]) {
-                        if (meta->_nsType == XZJSONEncodingNSString) {
-                            ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, value);
-                        } else {
-                            ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, ((NSString *)value).mutableCopy);
-                        }
-                    } else if ([value isKindOfClass:[NSNumber class]]) {
-                        ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model,
-                                                                       meta->_setter,
-                                                                       (meta->_nsType == XZJSONEncodingNSString) ?
-                                                                       ((NSNumber *)value).stringValue :
-                                                                       ((NSNumber *)value).stringValue.mutableCopy);
-                    } else if ([value isKindOfClass:[NSData class]]) {
-                        NSMutableString *string = [[NSMutableString alloc] initWithData:value encoding:NSUTF8StringEncoding];
-                        ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, string);
-                    } else if ([value isKindOfClass:[NSURL class]]) {
-                        ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model,
-                                                                       meta->_setter,
-                                                                       (meta->_nsType == XZJSONEncodingNSString) ?
-                                                                       ((NSURL *)value).absoluteString :
-                                                                       ((NSURL *)value).absoluteString.mutableCopy);
-                    } else if ([value isKindOfClass:[NSAttributedString class]]) {
-                        ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model,
-                                                                       meta->_setter,
-                                                                       (meta->_nsType == XZJSONEncodingNSString) ?
-                                                                       ((NSAttributedString *)value).string :
-                                                                       ((NSAttributedString *)value).string.mutableCopy);
+                    NSString * const string = NSStringFromJSONValue(value);
+                    ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, string.mutableCopy);
+                    break;
+                }
+                case XZJSONEncodingNSValue:{ // XZJSONEncodingNSValue
+                    if ([value isKindOfClass:[NSValue class]]) {
+                        ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, value);
                     }
-                } break;
-                    
-                case XZJSONEncodingNSValue:
-                case XZJSONEncodingNSNumber:
+                    break;
+                }
+                case XZJSONEncodingNSNumber: {
+                    ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, NSNumberFromJSONValue(value));
+                    break;
+                }
                 case XZJSONEncodingNSDecimalNumber: {
-                    if (meta->_nsType == XZJSONEncodingNSNumber) {
-                        ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, XZJSONMakeNSNumber(value));
-                    } else if (meta->_nsType == XZJSONEncodingNSDecimalNumber) {
-                        if ([value isKindOfClass:[NSDecimalNumber class]]) {
-                            ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, value);
-                        } else if ([value isKindOfClass:[NSNumber class]]) {
-                            NSDecimalNumber *decNum = [NSDecimalNumber decimalNumberWithDecimal:[((NSNumber *)value) decimalValue]];
-                            ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, decNum);
-                        } else if ([value isKindOfClass:[NSString class]]) {
-                            NSDecimalNumber *decNum = [NSDecimalNumber decimalNumberWithString:value];
-                            NSDecimal dec = decNum.decimalValue;
-                            if (dec._length == 0 && dec._isNegative) {
-                                decNum = nil; // NaN
-                            }
-                            ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, decNum);
+                    if ([value isKindOfClass:[NSNumber class]]) {
+                        NSDecimalNumber *number = [NSDecimalNumber decimalNumberWithDecimal:[((NSNumber *)value) decimalValue]];
+                        ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, number);
+                    } else if ([value isKindOfClass:[NSString class]]) {
+                        NSDecimalNumber * const number = [NSDecimalNumber decimalNumberWithString:value];
+                        NSDecimal const numberValue = number.decimalValue;
+                        if (numberValue._length == 0 && numberValue._isNegative) {
+                            return;
                         }
-                    } else { // XZJSONEncodingNSValue
-                        if ([value isKindOfClass:[NSValue class]]) {
-                            ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, value);
-                        }
+                        ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, number);
+                    } else if ([value isKindOfClass:[NSDecimalNumber class]]) {
+                        ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, value);
                     }
-                } break;
+                    break;
+                }
                     
-                case XZJSONEncodingNSData:
+                case XZJSONEncodingNSData: {
+                    NSData * const data = NSDataFromJSONValue(value);
+                    ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, data);
+                    break;
+                }
                 case XZJSONEncodingNSMutableData: {
-                    if ([value isKindOfClass:[NSData class]]) {
-                        if (meta->_nsType == XZJSONEncodingNSData) {
-                            ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, value);
-                        } else {
-                            NSMutableData *data = ((NSData *)value).mutableCopy;
-                            ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, data);
-                        }
-                    } else if ([value isKindOfClass:[NSString class]]) {
-                        NSData *data = [(NSString *)value dataUsingEncoding:NSUTF8StringEncoding];
-                        if (meta->_nsType == XZJSONEncodingNSMutableData) {
-                            data = ((NSData *)data).mutableCopy;
-                        }
-                        ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, data);
-                    }
-                } break;
-                    
+                    NSMutableData * const data = [NSDataFromJSONValue(value) mutableCopy];
+                    ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, data);
+                    break;
+                }
+                
                 case XZJSONEncodingNSDate: {
+                    // TODO: Date decoding
                     if ([value isKindOfClass:[NSDate class]]) {
-                        ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, value);
+                        ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, value);
                     } else if ([value isKindOfClass:[NSString class]]) {
-                        ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, XZJSONMakeNSDate(value));
+                        ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, NSDateFromJSONValue(value));
                     }
-                } break;
+                    break;
+                }
                     
                 case XZJSONEncodingNSURL: {
                     if ([value isKindOfClass:[NSURL class]]) {
-                        ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, value);
+                        ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, value);
                     } else if ([value isKindOfClass:[NSString class]]) {
                         NSCharacterSet *set = [NSCharacterSet whitespaceAndNewlineCharacterSet];
                         NSString *str = [value stringByTrimmingCharactersInSet:set];
                         if (str.length == 0) {
-                            ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, nil);
+                            ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, nil);
                         } else {
-                            ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, [[NSURL alloc] initWithString:str]);
+                            ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, [[NSURL alloc] initWithString:str]);
                         }
                     }
-                } break;
+                    break;
+                }
                     
                 case XZJSONEncodingNSArray:
                 case XZJSONEncodingNSMutableArray: {
-                    if (meta->_elementClass) {
+                    if (property->_elementClass) {
                         NSArray *valueArr = nil;
                         if ([value isKindOfClass:[NSArray class]]) valueArr = value;
                         else if ([value isKindOfClass:[NSSet class]]) valueArr = ((NSSet *)value).allObjects;
                         if (valueArr) {
                             NSMutableArray *objectArr = [NSMutableArray new];
                             for (id one in valueArr) {
-                                id const model = [XZJSON _decodeObject:one class:meta->_elementClass];
+                                id const model = [XZJSON _decodeObject:one class:property->_elementClass];
                                 if (model) {
                                     [objectArr addObject:model];
                                 }
                             }
-                            ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, objectArr);
+                            ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, objectArr);
                         }
                     } else {
                         if ([value isKindOfClass:[NSArray class]]) {
-                            if (meta->_nsType == XZJSONEncodingNSArray) {
-                                ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, value);
+                            if (property->_nsType == XZJSONEncodingNSArray) {
+                                ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, value);
                             } else {
                                 ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model,
-                                                                               meta->_setter,
+                                                                               property->_setter,
                                                                                ((NSArray *)value).mutableCopy);
                             }
                         } else if ([value isKindOfClass:[NSSet class]]) {
-                            if (meta->_nsType == XZJSONEncodingNSArray) {
-                                ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, ((NSSet *)value).allObjects);
+                            if (property->_nsType == XZJSONEncodingNSArray) {
+                                ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, ((NSSet *)value).allObjects);
                             } else {
                                 ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model,
-                                                                               meta->_setter,
+                                                                               property->_setter,
                                                                                ((NSSet *)value).allObjects.mutableCopy);
                             }
                         }
                     }
-                } break;
+                    break;
+                }
                     
                 case XZJSONEncodingNSDictionary:
                 case XZJSONEncodingNSMutableDictionary: {
                     if ([value isKindOfClass:[NSDictionary class]]) {
-                        if (meta->_elementClass) {
+                        if (property->_elementClass) {
                             NSMutableDictionary *dic = [NSMutableDictionary new];
                             [((NSDictionary *)value) enumerateKeysAndObjectsUsingBlock:^(NSString *oneKey, id oneValue, BOOL *stop) {
-                                id const model = [XZJSON _decodeObject:oneValue class:meta->_elementClass];
+                                id const model = [XZJSON _decodeObject:oneValue class:property->_elementClass];
                                 if (model) {
                                     dic[oneKey] = model;
                                 }
                             }];
-                            ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, dic);
+                            ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, dic);
                         } else {
-                            if (meta->_nsType == XZJSONEncodingNSDictionary) {
-                                ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, value);
+                            if (property->_nsType == XZJSONEncodingNSDictionary) {
+                                ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, value);
                             } else {
                                 ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model,
-                                                                               meta->_setter,
+                                                                               property->_setter,
                                                                                ((NSDictionary *)value).mutableCopy);
                             }
                         }
                     }
-                } break;
+                    break;
+                }
                     
                 case XZJSONEncodingNSSet:
                 case XZJSONEncodingNSMutableSet: {
@@ -545,21 +574,21 @@ FOUNDATION_STATIC_INLINE void XZJSONDecodeValueForProperty(__unsafe_unretained i
                     if ([value isKindOfClass:[NSArray class]]) valueSet = [NSMutableSet setWithArray:value];
                     else if ([value isKindOfClass:[NSSet class]]) valueSet = ((NSSet *)value);
                     
-                    if (meta->_elementClass) {
+                    if (property->_elementClass) {
                         NSMutableSet *set = [NSMutableSet new];
                         for (id one in valueSet) {
-                            id const model = [XZJSON _decodeObject:one class:meta->_elementClass];
+                            id const model = [XZJSON _decodeObject:one class:property->_elementClass];
                             if (model) {
                                 [set addObject:model];
                             }
                         }
-                        ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, set);
+                        ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, set);
                     } else {
-                        if (meta->_nsType == XZJSONEncodingNSSet) {
-                            ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, valueSet);
+                        if (property->_nsType == XZJSONEncodingNSSet) {
+                            ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, valueSet);
                         } else {
                             ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model,
-                                                                           meta->_setter,
+                                                                           property->_setter,
                                                                            ((NSSet *)valueSet).mutableCopy);
                         }
                     }
@@ -570,88 +599,94 @@ FOUNDATION_STATIC_INLINE void XZJSONDecodeValueForProperty(__unsafe_unretained i
         }
     } else {
         BOOL isNull = (value == (id)kCFNull);
-        switch (meta->_type & XZObjcTypeMask) {
+        switch (property->_type & XZObjcTypeMask) {
             case XZObjcTypeObject: {
                 if (isNull) {
-                    ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, (id)nil);
-                } else if ([value isKindOfClass:meta->_class] || !meta->_class) {
-                    ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, (id)value);
+                    ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, (id)nil);
+                } else if ([value isKindOfClass:property->_class] || !property->_class) {
+                    ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, (id)value);
                 } else if ([value isKindOfClass:[NSDictionary class]]) {
                     NSObject *one = nil;
-                    if (meta->_getter) {
-                        one = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, meta->_getter);
+                    if (property->_getter) {
+                        one = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, property->_getter);
                     }
                     if (one) {
                         [XZJSON object:one decodeWithDictionary:value];
                     } else {
-                        one = [XZJSON _decodeObject:value class:meta->_class];
+                        one = [XZJSON _decodeObject:value class:property->_class];
                         // if one == nil ?
-                        ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, (id)one);
+                        ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, property->_setter, (id)one);
                     }
                 }
-            } break;
+                break;
+            }
                 
             case XZObjcTypeClass: {
                 if (isNull) {
-                    ((void (*)(id, SEL, Class))(void *) objc_msgSend)((id)model, meta->_setter, (Class)NULL);
+                    ((void (*)(id, SEL, Class))(void *) objc_msgSend)((id)model, property->_setter, (Class)NULL);
                 } else {
                     Class cls = nil;
                     if ([value isKindOfClass:[NSString class]]) {
                         cls = NSClassFromString(value);
                         if (cls) {
-                            ((void (*)(id, SEL, Class))(void *) objc_msgSend)((id)model, meta->_setter, (Class)cls);
+                            ((void (*)(id, SEL, Class))(void *) objc_msgSend)((id)model, property->_setter, (Class)cls);
                         }
                     } else {
                         cls = object_getClass(value);
                         if (cls) {
                             if (class_isMetaClass(cls)) {
-                                ((void (*)(id, SEL, Class))(void *) objc_msgSend)((id)model, meta->_setter, (Class)value);
+                                ((void (*)(id, SEL, Class))(void *) objc_msgSend)((id)model, property->_setter, (Class)value);
                             }
                         }
                     }
                 }
-            } break;
+                break;
+            }
                 
             case  XZObjcTypeSEL: {
                 if (isNull) {
-                    ((void (*)(id, SEL, SEL))(void *) objc_msgSend)((id)model, meta->_setter, (SEL)NULL);
+                    ((void (*)(id, SEL, SEL))(void *) objc_msgSend)((id)model, property->_setter, (SEL)NULL);
                 } else if ([value isKindOfClass:[NSString class]]) {
                     SEL sel = NSSelectorFromString(value);
-                    if (sel) ((void (*)(id, SEL, SEL))(void *) objc_msgSend)((id)model, meta->_setter, (SEL)sel);
+                    if (sel) ((void (*)(id, SEL, SEL))(void *) objc_msgSend)((id)model, property->_setter, (SEL)sel);
                 }
-            } break;
+                break;
+            }
                 
             case XZObjcTypeBlock: {
                 if (isNull) {
-                    ((void (*)(id, SEL, void (^)(void)))(void *) objc_msgSend)((id)model, meta->_setter, (void (^)(void))NULL);
+                    ((void (*)(id, SEL, void (^)(void)))(void *) objc_msgSend)((id)model, property->_setter, (void (^)(void))NULL);
                 } else if ([value isKindOfClass:XZJSONGetBlockClass()]) {
-                    ((void (*)(id, SEL, void (^)(void)))(void *) objc_msgSend)((id)model, meta->_setter, (void (^)(void))value);
+                    ((void (*)(id, SEL, void (^)(void)))(void *) objc_msgSend)((id)model, property->_setter, (void (^)(void))value);
                 }
-            } break;
+                break;
+            }
                 
             case XZObjcTypeStruct:
             case XZObjcTypeUnion:
             case XZObjcTypeCArray: {
                 if ([value isKindOfClass:[NSValue class]]) {
                     const char *valueType = ((NSValue *)value).objCType;
-                    const char *metaType = meta->_property.typeEncoding.UTF8String;
+                    const char *metaType = property->_property.typeEncoding.UTF8String;
                     if (valueType && metaType && strcmp(valueType, metaType) == 0) {
-                        [model setValue:value forKey:meta->_name];
+                        [model setValue:value forKey:property->_name];
                     }
                 }
-            } break;
+                break;
+            }
                 
             case XZObjcTypePointer:
             case XZObjcTypeCString: {
                 if (isNull) {
-                    ((void (*)(id, SEL, void *))(void *) objc_msgSend)((id)model, meta->_setter, (void *)NULL);
+                    ((void (*)(id, SEL, void *))(void *) objc_msgSend)((id)model, property->_setter, (void *)NULL);
                 } else if ([value isKindOfClass:[NSValue class]]) {
                     NSValue *nsValue = value;
                     if (nsValue.objCType && strcmp(nsValue.objCType, "^v") == 0) {
-                        ((void (*)(id, SEL, void *))(void *) objc_msgSend)((id)model, meta->_setter, nsValue.pointerValue);
+                        ((void (*)(id, SEL, void *))(void *) objc_msgSend)((id)model, property->_setter, nsValue.pointerValue);
                     }
                 }
-            } // break; commented for code coverage in next line
+                break;
+            } 
                 
             default: break;
         }
@@ -802,7 +837,7 @@ FOUNDATION_STATIC_INLINE id _Nonnull XZJSONEncodingRecursive(NSObject * _Nonnull
         
         id value = nil;
         if (propertyMeta->_isCNumber) {
-            value = XZJSONEncodeNumberForProperty(model, propertyMeta);
+            value = XZJSONEncodeNSNumberForProperty(model, propertyMeta);
         } else if (propertyMeta->_nsType) {
             id v = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
             value = XZJSONEncodingRecursive(v);
@@ -812,15 +847,18 @@ FOUNDATION_STATIC_INLINE id _Nonnull XZJSONEncodingRecursive(NSObject * _Nonnull
                     id v = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
                     value = XZJSONEncodingRecursive(v);
                     if (value == (id)kCFNull) value = nil;
-                } break;
+                    break;
+                }
                 case XZObjcTypeClass: {
                     Class v = ((Class (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
                     value = v ? NSStringFromClass(v) : nil;
-                } break;
+                    break;
+                }
                 case XZObjcTypeSEL: {
                     SEL v = ((SEL (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
                     value = v ? NSStringFromSelector(v) : nil;
-                } break;
+                    break;
+                }
                 default: break;
             }
         }
@@ -969,7 +1007,7 @@ FOUNDATION_STATIC_INLINE NSString * _Nonnull XZJSONDescription(NSObject * _Nonnu
                 XZJSONPropertyDescriptor *property = properties[i];
                 NSString *propertyDesc;
                 if (property->_isCNumber) {
-                    NSNumber *num = XZJSONEncodeNumberForProperty(model, property);
+                    NSNumber *num = XZJSONEncodeNSNumberForProperty(model, property);
                     propertyDesc = num.stringValue;
                 } else {
                     switch (property->_type & XZObjcTypeMask) {
@@ -977,29 +1015,35 @@ FOUNDATION_STATIC_INLINE NSString * _Nonnull XZJSONDescription(NSObject * _Nonnu
                             id v = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, property->_getter);
                             propertyDesc = XZJSONDescription(v);
                             if (!propertyDesc) propertyDesc = @"<nil>";
-                        } break;
+                            break;
+                        }
                         case XZObjcTypeClass: {
                             id v = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, property->_getter);
                             propertyDesc = ((NSObject *)v).description;
                             if (!propertyDesc) propertyDesc = @"<nil>";
-                        } break;
+                            break;
+                        }
                         case XZObjcTypeSEL: {
                             SEL sel = ((SEL (*)(id, SEL))(void *) objc_msgSend)((id)model, property->_getter);
                             if (sel) propertyDesc = NSStringFromSelector(sel);
                             else propertyDesc = @"<NULL>";
-                        } break;
+                            break;
+                        }
                         case XZObjcTypeBlock: {
                             id block = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, property->_getter);
                             propertyDesc = block ? ((NSObject *)block).description : @"<nil>";
-                        } break;
+                            break;
+                        }
                         case XZObjcTypeCArray: case XZObjcTypeCString: case XZObjcTypePointer: {
                             void *pointer = ((void* (*)(id, SEL))(void *) objc_msgSend)((id)model, property->_getter);
                             propertyDesc = [NSString stringWithFormat:@"%p",pointer];
-                        } break;
+                            break;
+                        }
                         case XZObjcTypeStruct: case XZObjcTypeUnion: {
                             NSValue *value = [model valueForKey:property->_name];
                             propertyDesc = value ? value.description : @"{unknown}";
-                        } break;
+                            break;
+                        }
                         default: propertyDesc = @"<unknown>";
                     }
                 }
