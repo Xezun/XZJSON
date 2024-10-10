@@ -31,14 +31,18 @@
     }
     // 默认数组为，解析多个 json 数据
     if ([json isKindOfClass:NSArray.class]) {
-        NSMutableArray *arrayM = [NSMutableArray arrayWithCapacity:((NSArray *)json).count];
-        for (id object in json) {
-            id const model = [self decode:object options:options class:aClass];
+        NSArray * const jsonArray = json;
+        if (jsonArray.count == 0) {
+            return jsonArray;
+        }
+        NSMutableArray *models = [NSMutableArray arrayWithCapacity:jsonArray.count];
+        for (id json in jsonArray) {
+            id const model = [self decode:json options:options class:aClass];
             if (model != nil) {
-                [arrayM addObject:model];
+                [models addObject:model];
             }
         }
-        return arrayM;
+        return models;
     }
     // 其它情况视为已解析好的 json
     return [self _decodeObject:json class:aClass];
@@ -55,57 +59,62 @@
 }
 
 /// 模型化已序列化的 JSON 数据。
-+ (nullable id)_decodeObject:(nonnull id)object class:(Class)aClass {
++ (nullable id)_decodeObject:(nonnull id const)object class:(Class)aClass {
     if (object == NSNull.null) {
         return nil;
     }
+    // 如果为字典，则认为是模型数据。
     if ([object isKindOfClass:NSDictionary.class]) {
+        NSDictionary *dictionary = object;
         XZJSONClassDescriptor * const descriptor = [XZJSONClassDescriptor descriptorForClass:aClass];
         
         if (descriptor->_supportsXZJSONDecoding) {
             if (descriptor->_forwardsDecodeForClass) {
-                aClass = [aClass forwardingClassForJSONDictionary:object];
+                aClass = [aClass forwardingClassForJSONDictionary:dictionary];
                 if (aClass == Nil) {
                     return nil;
                 }
             }
             
             if (descriptor->_canEncodeFromDictionary) {
-                object = [aClass canDecodeFromJSONDictionary:object];
-                if (object == nil) {
+                dictionary = [aClass canDecodeFromJSONDictionary:dictionary];
+                if (dictionary == nil) {
                     return nil;
                 }
             }
             
             if (descriptor->_usesDecodingInitializer) {
-                return [[aClass alloc] initWithJSONDictionary:object];
+                return [[aClass alloc] initWithJSONDictionary:dictionary];
             }
         }
         
         id const model = [aClass new];
         if (model != nil) {
-            [self object:model decodeWithDictionary:object];
+            [self object:model decodeWithDictionary:dictionary];
         }
         return model;
     }
+    // 如果是数组，则对数组元素是模型数据（也可能是模型数据数组）。
     if ([object isKindOfClass:NSArray.class]) {
         NSArray * const array = object;
         if (array.count == 0) {
             return array;
         }
         
-        NSMutableArray * const arrayM = [NSMutableArray arrayWithCapacity:array.count];
+        NSMutableArray * const models = [NSMutableArray arrayWithCapacity:array.count];
         for (id item in array) {
             id const model = [self _decodeObject:item class:aClass];
             if (model) {
-                [arrayM addObject:model];
+                [models addObject:model];
             }
         }
-        return arrayM;
+        return models;
     }
+    // 如果已经模型对象，直接使用。
     if ([object isKindOfClass:aClass]) {
         return object;
     }
+    // 模型化失败。
     return nil;
 }
 
