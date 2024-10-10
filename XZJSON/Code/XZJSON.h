@@ -14,6 +14,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// 支持 模型 与 JSON 互相转换的工具。
 XZ_JSON_STATIC_CLASS @interface XZJSON : NSObject
 
++ (instancetype)alloc NS_UNAVAILABLE;
++ (instancetype)allocWithZone:(struct _NSZone *)zone NS_UNAVAILABLE;
++ (instancetype)new NS_UNAVAILABLE;
+- (instancetype)init NS_UNAVAILABLE;
+
 /// 模型化 JSON 数据。
 /// - Parameters:
 ///   - json: JSON

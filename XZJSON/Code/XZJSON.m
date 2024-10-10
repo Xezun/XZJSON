@@ -19,7 +19,7 @@
     }
     // 二进制流形式的 json 数据。
     if ([json isKindOfClass:NSData.class]) {
-        return [self decodeData:json options:options class:aClass];
+        return [self _decodeData:json options:options class:aClass];
     }
     // 字符串形式的 json 数据。
     if ([json isKindOfClass:NSString.class]) {
@@ -27,7 +27,7 @@
         if (data == nil) {
             return nil;
         }
-        return [self decodeData:data options:options class:aClass];
+        return [self _decodeData:data options:options class:aClass];
     }
     // 默认数组为，解析多个 json 数据
     if ([json isKindOfClass:NSArray.class]) {
@@ -41,21 +41,21 @@
         return arrayM;
     }
     // 其它情况视为已解析好的 json
-    return [self decodeObject:json class:aClass];
+    return [self _decodeObject:json class:aClass];
 }
 
 /// 序列化原始 JOSN 数据。
-+ (nullable id)decodeData:(nonnull NSData *)data options:(NSJSONReadingOptions)options class:(Class)aClass {
++ (nullable id)_decodeData:(nonnull NSData *)data options:(NSJSONReadingOptions)options class:(Class)aClass {
     NSError *error = nil;
     id const object = [NSJSONSerialization JSONObjectWithData:data options:options error:&error];
-    if (error == nil || error.code == noErr ) {
-        return [self decodeObject:object class:aClass];
+    if ((error == nil || error.code == noErr) && object != nil) {
+        return [self _decodeObject:object class:aClass];
     }
     return nil;
 }
 
 /// 模型化已序列化的 JSON 数据。
-+ (nullable id)decodeObject:(nonnull id)object class:(Class)aClass {
++ (nullable id)_decodeObject:(nonnull id)object class:(Class)aClass {
     if (object == NSNull.null) {
         return nil;
     }
@@ -96,7 +96,7 @@
         
         NSMutableArray * const arrayM = [NSMutableArray arrayWithCapacity:array.count];
         for (id item in array) {
-            id const model = [self decodeObject:item class:aClass];
+            id const model = [self _decodeObject:item class:aClass];
             if (model) {
                 [arrayM addObject:model];
             }
@@ -116,7 +116,7 @@
         return nil;
     }
     
-    id const JSONObject = [self encodeObject:object dictionary:nil];
+    id const JSONObject = [self _encodeObject:object dictionary:nil];
     
     if (JSONObject == nil) {
         return nil;
@@ -126,9 +126,8 @@
 }
 
 /// 将 原生或自定义的数据实例对象 模型化为 JSON基础数据类型。
-+ (id)encodeObject:(id)model dictionary:(nullable NSMutableDictionary *)dictionary {
++ (id)_encodeObject:(id)model dictionary:(nullable NSMutableDictionary *)dictionary {
     // === 原生数据 ===
-    
     if (!model || model == (id)kCFNull) return model;
     if ([model isKindOfClass:[NSString class]]) return model;
     if ([model isKindOfClass:[NSNumber class]]) return model;
@@ -139,7 +138,7 @@
         [dict enumerateKeysAndObjectsUsingBlock:^(NSString *key, id obj, BOOL *stop) {
             NSString * const stringKey = [key isKindOfClass:[NSString class]] ? key : key.description;
             if (!stringKey) return;
-            id const jsonObj = [self encodeObject:obj dictionary:nil];
+            id const jsonObj = [self _encodeObject:obj dictionary:nil];
             if (jsonObj != nil) {
                 dictM[stringKey] = jsonObj;
             }
@@ -156,7 +155,7 @@
         if ([NSJSONSerialization isValidJSONObject:array]) return array;
         NSMutableArray *newArray = [NSMutableArray arrayWithCapacity:array.count];
         for (id obj in (NSArray *)model) {
-            id const jsonObj = [self encodeObject:obj dictionary:nil];
+            id const jsonObj = [self _encodeObject:obj dictionary:nil];
             if (jsonObj != nil) {
                 [newArray addObject:jsonObj];
             }
@@ -182,7 +181,7 @@
     }
     
     // 通用解析
-    [self object:model encodeIntoDictionary:dictionary descriptor:descriptor];
+    [self _object:model encodeIntoDictionary:dictionary descriptor:descriptor];
     
     return dictionary;
 }
@@ -223,10 +222,10 @@
 
 + (void)object:(id)object encodeIntoDictionary:(NSMutableDictionary *)dictionary {
     XZJSONClassDescriptor * const descriptor = [XZJSONClassDescriptor descriptorForClass:[object class]];
-    [self object:object encodeIntoDictionary:dictionary descriptor:descriptor];
+    [self _object:object encodeIntoDictionary:dictionary descriptor:descriptor];
 }
 
-+ (void)object:(id)model encodeIntoDictionary:(NSMutableDictionary *)dictionary descriptor:(XZJSONClassDescriptor *)descriptor {
++ (void)_object:(id)model encodeIntoDictionary:(NSMutableDictionary *)dictionary descriptor:(XZJSONClassDescriptor *)descriptor {
     if (!descriptor || descriptor->_numberOfProperties == 0) return;
     
     __unsafe_unretained NSMutableDictionary *dic = dictionary; // avoid retain and release in block
@@ -266,7 +265,7 @@
             // 原生类型
             id const nsValue = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
             if (nsValue) {
-                value = [self encodeObject:nsValue dictionary:nil];
+                value = [self _encodeObject:nsValue dictionary:nil];
             }
         } else {
             // 模型
@@ -279,7 +278,7 @@
                         if (![subDict isKindOfClass:NSMutableDictionary.class]) {
                             subDict = [NSMutableDictionary dictionary];
                         }
-                        value = [self encodeObject:csValue dictionary:subDict];
+                        value = [self _encodeObject:csValue dictionary:subDict];
                     }
                     break;
                 }

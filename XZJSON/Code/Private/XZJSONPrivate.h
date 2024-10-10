@@ -11,12 +11,10 @@
 #import <XZJSON/XZJSONDefines.h>
 @import ObjectiveC;
 
-NS_ASSUME_NONNULL_BEGIN
 @interface XZJSON (XZJSONPrivate)
 /// 模型化已序列化的 JSON 数据。
-+ (nullable id)decodeObject:(nonnull id)object class:(Class)aClass;
++ (nullable id)_decodeObject:(nonnull id)object class:(nonnull Class)aClass;
 @end
-NS_ASSUME_NONNULL_END
 
 /// Parse a number value from 'id'.
 FOUNDATION_STATIC_INLINE NSNumber * _Nullable XZJSONMakeNSNumber(__unsafe_unretained id _Nullable value) {
@@ -489,7 +487,7 @@ FOUNDATION_STATIC_INLINE void XZJSONDecodeValueForProperty(__unsafe_unretained i
                         if (valueArr) {
                             NSMutableArray *objectArr = [NSMutableArray new];
                             for (id one in valueArr) {
-                                id const model = [XZJSON decodeObject:one class:meta->_elementClass];
+                                id const model = [XZJSON _decodeObject:one class:meta->_elementClass];
                                 if (model) {
                                     [objectArr addObject:model];
                                 }
@@ -523,7 +521,7 @@ FOUNDATION_STATIC_INLINE void XZJSONDecodeValueForProperty(__unsafe_unretained i
                         if (meta->_elementClass) {
                             NSMutableDictionary *dic = [NSMutableDictionary new];
                             [((NSDictionary *)value) enumerateKeysAndObjectsUsingBlock:^(NSString *oneKey, id oneValue, BOOL *stop) {
-                                id const model = [XZJSON decodeObject:oneValue class:meta->_elementClass];
+                                id const model = [XZJSON _decodeObject:oneValue class:meta->_elementClass];
                                 if (model) {
                                     dic[oneKey] = model;
                                 }
@@ -550,7 +548,7 @@ FOUNDATION_STATIC_INLINE void XZJSONDecodeValueForProperty(__unsafe_unretained i
                     if (meta->_elementClass) {
                         NSMutableSet *set = [NSMutableSet new];
                         for (id one in valueSet) {
-                            id const model = [XZJSON decodeObject:one class:meta->_elementClass];
+                            id const model = [XZJSON _decodeObject:one class:meta->_elementClass];
                             if (model) {
                                 [set addObject:model];
                             }
@@ -586,7 +584,7 @@ FOUNDATION_STATIC_INLINE void XZJSONDecodeValueForProperty(__unsafe_unretained i
                     if (one) {
                         [XZJSON object:one decodeWithDictionary:value];
                     } else {
-                        one = [XZJSON decodeObject:value class:meta->_class];
+                        one = [XZJSON _decodeObject:value class:meta->_class];
                         // if one == nil ?
                         ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, (id)one);
                     }
