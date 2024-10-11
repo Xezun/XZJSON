@@ -1,0 +1,7 @@
+ };
+		2EF42708A853617D58F5E5317EFBD93A /* NSButton+WebCache.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = "NSButton+WebCache.m"; path = "SDWebImage/Core/NSButton+WebCache.m"; sourceTree = "<group>"; };
+		328401546C4C1EFC5CEA58CC6B34744A /* XZURLQuery-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "XZURLQuery-Info.plist"; sourceTree = "<group>"; };
+		33285CD36EAA43FF82454CDAF58EDC17 /* XZURLQuery.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.module; path = XZURLQuery.modulemap; sourceTree = "<group>"; };
+		345102D09A0FB886D92BF773E822F53B /* AFURLSessionManager.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = AFURLSessionManager.m; path = AFNetworking/AFURLSessionManager.m; sourceTree = "<group>"; };
+		34F8E21B10AA7C0BB0A241693DF40840 /* Pods-ExampleUITests-acknowledgements.markdown */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = "Pods-ExampleUITests-acknowledgements.markdown"; sourceTree = "<group>"; };
+		353253AB56E44418897B4DB3D67BD60A /* AFNetworkReachabilityManager.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = AFNetworkReachabilityMana
