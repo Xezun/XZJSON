@@ -9,6 +9,8 @@
 #import "XZJSONPropertyDescriptor.h"
 #import "XZJSONDefines.h"
 
+static id XZJSONMappingKeyParser(NSString *JSONKey);
+
 @implementation XZJSONClassDescriptor
 
 - (instancetype)initWithClass:(nonnull Class)rawClass {
@@ -86,74 +88,77 @@
     NSMutableArray      *keyArrayProperties = [NSMutableArray new];
     
     if ([rawClass respondsToSelector:@selector(mappingJSONCodingKeys)]) {
-        [[rawClass mappingJSONCodingKeys] enumerateKeysAndObjectsUsingBlock:^(NSString * const propertyName, id const JSONKey, BOOL *stop) {
-            XZJSONPropertyDescriptor *property = namedProperties[propertyName];
-            if (!property) return;
-            // TODO: 测试 JSONKey 不合法时，该属性是否会被忽略
+        [[rawClass mappingJSONCodingKeys] enumerateKeysAndObjectsUsingBlock:^(NSString * const propertyName, id const value, BOOL *stop) {
+            XZJSONPropertyDescriptor * const property = namedProperties[propertyName];
+            if (property == nil) {
+                return; // 没找到对应的属性。
+            }
+            
+            NSString * JSONKey      = nil;
+            NSArray  * JSONKeyPath  = nil;
+            NSArray  * JSONKeyArray = nil;
+            
+            if ([value isKindOfClass:NSString.class]) {
+                id const someKey = XZJSONMappingKeyParser(value);
+                if (someKey == nil) {
+                    return;
+                } else if ([someKey isKindOfClass:NSString.class]) {
+                    JSONKey = someKey;
+                } else {
+                    JSONKey = [someKey componentsJoinedByString:@"."];
+                    JSONKeyPath = someKey;
+                }
+            } else if ([value isKindOfClass:NSArray.class]) {
+                NSMutableArray *arrayM = [NSMutableArray arrayWithCapacity:((NSArray *)value).count];
+                for (id object in value) {
+                    if (![object isKindOfClass:NSString.class]) {
+                        continue;
+                    }
+                    id const someKey = XZJSONMappingKeyParser(object);
+                    if (someKey != nil) {
+                        [arrayM addObject:someKey];
+                    }
+                }
+                switch (arrayM.count) {
+                    case 0:
+                        return;
+                    case 1: {
+                        id const someKey = arrayM[0];
+                        if ([someKey isKindOfClass:NSString.class]) {
+                            JSONKey = someKey;
+                        } else {
+                            JSONKey = [someKey componentsJoinedByString:@"."];
+                            JSONKeyPath = someKey;
+                        }
+                        break;
+                    }
+                    default: {
+                        JSONKeyArray = arrayM;
+                        id const someKey = arrayM[0];
+                        if ([someKey isKindOfClass:NSString.class]) {
+                            JSONKey = someKey;
+                        } else {
+                            JSONKey = [(NSArray *)someKey componentsJoinedByString:@"."];
+                        }
+                        break;
+                    }
+                }
+            } else {
+                return;
+            }
+            
+            // 移除已处理的
             [namedProperties removeObjectForKey:propertyName];
             
-            if ([JSONKey isKindOfClass:[NSString class]]) {
-                NSString * const stringKey = JSONKey;
-                if (stringKey.length == 0) return;
-                
-                property->_JSONKey = stringKey;
-                
-                if ([stringKey containsString:@"."]) {
-                    NSArray *keyPath = [stringKey componentsSeparatedByString:@"."];
-                    while ([keyPath containsObject:@""]) {
-                        NSMutableArray *arrayM = (NSMutableArray *)keyPath;
-                        if (![arrayM isKindOfClass:NSMutableArray.class]) {
-                            arrayM = [keyPath mutableCopy];
-                            keyPath = arrayM;
-                        }
-                        [arrayM removeObject:@""];
-                    }
-                    
-                    if (keyPath.count > 1) {
-                        property->_JSONKeyPath = keyPath;
-                        [keyPathProperties addObject:property];
-                    }
-                }
-                
-                property->_next = keyProperties[stringKey];
-                keyProperties[stringKey] = property;
-            } else if ([JSONKey isKindOfClass:[NSArray class]]) {
-                NSArray * const arrayKey = JSONKey;
-                
-                NSMutableArray *JSONKeyArray = [NSMutableArray new];
-                for (NSString *key in arrayKey) {
-                    if (![key isKindOfClass:[NSString class]]) continue;
-                    if (key.length == 0) continue;
-                    
-                    NSArray *keyPath = [key componentsSeparatedByString:@"."];
-                    while ([keyPath containsObject:@""]) {
-                        NSMutableArray *arrayM = (NSMutableArray *)keyPath;
-                        if (![arrayM isKindOfClass:NSMutableArray.class]) {
-                            arrayM = [keyPath mutableCopy];
-                            keyPath = arrayM;
-                        }
-                        [arrayM removeObject:@""];
-                    }
-                    
-                    if (keyPath.count > 1) {
-                        [JSONKeyArray addObject:keyPath];
-                    } else {
-                        [JSONKeyArray addObject:key];
-                    }
-                    
-                    // 数组中的第一个 key
-                    if (!property->_JSONKey) {
-                        property->_JSONKey = key;
-                        property->_JSONKeyPath = keyPath.count > 1 ? keyPath : nil;
-                    }
-                    
-                    // TODO: YYModel 源代码有问题，此处待验证
-                    property->_next = keyProperties[key];
-                    keyProperties[key] = property;
-                }
-                if (!property->_JSONKey) return;
-                
-                property->_JSONKeyArray = JSONKeyArray;
+            property->_JSONKey      = JSONKey;
+            property->_JSONKeyPath  = JSONKeyPath;
+            property->_JSONKeyArray = JSONKeyArray;
+            property->_next         = keyProperties[JSONKey];
+            keyProperties[JSONKey]  = property;
+            
+            if (JSONKeyPath) {
+                [keyPathProperties addObject:property];
+            } else if (JSONKeyArray) {
                 [keyArrayProperties addObject:property];
             }
         }];
@@ -203,7 +208,7 @@
     XZJSONClassDescriptor *descriptor = CFDictionaryGetValue(_cachedDescriptors, (__bridge const void *)(aClass));
     dispatch_semaphore_signal(_lock);
     
-    if (!descriptor || descriptor->_class.isValid) {
+    if (descriptor == nil || !descriptor->_class.isValid) {
         descriptor = [[XZJSONClassDescriptor alloc] initWithClass:aClass];
         if (descriptor) {
             dispatch_semaphore_wait(_lock, DISPATCH_TIME_FOREVER);
@@ -216,3 +221,49 @@
 }
 
 @end
+
+/// 解析字 JSON 键 key/keyPath 值，返回值nil或字符串或字符串数组。
+/// - Parameter JSONKey: JSON 键
+id XZJSONMappingKeyParser(NSString *JSONKey) {
+    if (JSONKey.length == 0) {
+        return nil;
+    }
+    
+    if (![JSONKey containsString:@"."]) {
+        return JSONKey;
+    }
+    
+    NSMutableArray *  JSONKeyPath   = [NSMutableArray array];
+    BOOL __block      isEescapeMode = NO;
+    NSMutableString * key           = [NSMutableString string];
+    [JSONKey enumerateSubstringsInRange:NSMakeRange(0, JSONKey.length) options:NSStringEnumerationByComposedCharacterSequences usingBlock:^(NSString *substring, NSRange characterRange, NSRange enclosingRange, BOOL *stop) {
+        if (isEescapeMode) {
+            isEescapeMode = NO;
+            [key appendString:substring];
+        } else if ([substring isEqualToString:@"."]) {
+            NSUInteger const length = key.length;
+            if (length > 0) {
+                [JSONKeyPath addObject:key.copy];
+                [key deleteCharactersInRange:NSMakeRange(0, length)];
+            }
+        } else if ([substring isEqualToString:@"\\"]) {
+            isEescapeMode = YES;
+        } else {
+            [key appendString:substring];
+        }
+    }];
+    
+    if (key.length > 0) {
+        [JSONKeyPath addObject:key.copy];
+        key = nil;
+    }
+    
+    switch (JSONKeyPath.count) {
+        case 0:
+            return nil;
+        case 1:
+            return JSONKeyPath[0];
+        default:
+            return JSONKeyPath;
+    }
+};

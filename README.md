@@ -50,7 +50,10 @@ NSData *json = [XZJSON encode:model options:NSJSONWritingPrettyPrinted error:nil
 ```objc
 + (NSDictionary<NSString *,id> *)mappingJSONCodingKeys {
     return @{
-        @"identifier": @"id"
+        @"identifier": @"id",
+        @"name": @"info.name", // 映射 keyPath
+        @"age": @[@"age", @"info.age"]
+        @"foobar": @"foo\\.bar" // 映射 JSON 的 "foo.bar" 键，而不是 keyPath
     };
 }
 ```
@@ -69,12 +72,17 @@ NSData *json = [XZJSON encode:model options:NSJSONWritingPrettyPrinted error:nil
 
 ```objc
 - (instancetype)initWithJSONDictionary:(NSDictionary *)JSON {
-    [XZJSON object:self decodeWithDictionary:JSON];
-    
-    [self.students enumerateObjectsUsingBlock:^(Student * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
-        obj.teacher = self;
-    }];
-    
+    // 调用指定初始化方法。
+    self = [self init];
+    if (self != nil) {
+        // 使用 XZJSON 进行初始化。
+        [XZJSON object:self decodeWithDictionary:JSON];
+        
+        // 处理自定义逻辑：关联学生和老师
+        [self.students enumerateObjectsUsingBlock:^(Example001Student * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+            obj.teacher = self;
+        }];
+    }
     return self;
 }
 ```

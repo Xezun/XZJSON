@@ -243,50 +243,49 @@
 + (void)_object:(id)model encodeIntoDictionary:(NSMutableDictionary *)dictionary descriptor:(XZJSONClassDescriptor *)descriptor {
     if (!descriptor || descriptor->_numberOfProperties == 0) return;
     
-    __unsafe_unretained NSMutableDictionary *dic = dictionary; // avoid retain and release in block
-    [descriptor->_keyProperties enumerateKeysAndObjectsUsingBlock:^(NSString *propertyMappedKey, XZJSONPropertyDescriptor *propertyMeta, BOOL *stop) {
-        if (!propertyMeta->_getter) return;
-        NSMutableDictionary *dict = dictionary;
+    [descriptor->_keyProperties enumerateKeysAndObjectsUsingBlock:^(NSString *aKey, XZJSONPropertyDescriptor *property, BOOL *stop) {
+        if (!property->_getter) return;
         
-        NSString *key = nil;
-        if (propertyMeta->_JSONKeyPath) {
-            for (NSInteger i = 0, max = propertyMeta->_JSONKeyPath.count - 1; i <= max; i++) {
-                if (![dict isKindOfClass:NSMutableDictionary.class]) {
-                    return; // 对应的 key 已经有其它值，不支持设置 keyPath
+        NSMutableDictionary *dict = dictionary;
+        NSString            *key  = nil;
+        if (property->_JSONKeyPath) { // 优先使用 keyPath
+            for (NSInteger i = 0, max = property->_JSONKeyPath.count - 1; ; i++) {
+                NSString * const subKey = property->_JSONKeyPath[i];
+                if (i >= max) {
+                    key = subKey;
+                    break;
                 }
-                NSString * const subKey = propertyMeta->_JSONKeyPath[i];
-                key = subKey;
-                if (i == max) {
-                    break; // 最后一个
-                }
-                NSMutableDictionary * subDict = dict[subKey];
+                
+                NSMutableDictionary *subDict = dict[subKey];
                 if (subDict == nil) {
                     subDict = [NSMutableDictionary dictionary];
                     dict[subKey] = subDict;
+                } else if (![subDict isKindOfClass:NSMutableDictionary.class]) {
+                    return; // 对应的 key 已经有其它值，不支持设置 keyPath
                 }
                 dict = subDict;
             }
-        } else if (!dic[propertyMeta->_JSONKey]) {
-            key = propertyMeta->_JSONKey;
+        } else if (dictionary[property->_JSONKey]) {
+            return; // 值已存在，不覆盖。
         } else {
-            return;
+            key = property->_JSONKey;
         }
         
         id value = nil;
-        if (propertyMeta->_isCNumber) {
+        if (property->_isCNumber) {
             // 标量数字
-            value = XZJSONEncodeNumberForProperty(model, propertyMeta);
-        } else if (propertyMeta->_nsType) {
+            value = XZJSONEncodeNumberForProperty(model, property);
+        } else if (property->_nsType) {
             // 原生类型
-            id const nsValue = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
+            id const nsValue = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, property->_getter);
             if (nsValue) {
                 value = [self _encodeObject:nsValue dictionary:nil];
             }
         } else {
             // 模型
-            switch (propertyMeta->_type & XZObjcTypeMask) {
+            switch (property->_type & XZObjcTypeMask) {
                 case XZObjcTypeObject: {
-                    id const csValue = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
+                    id const csValue = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, property->_getter);
                     if (csValue) {
                         // 如果 key 已经有值，则进行合并，不能合并则覆盖
                         NSMutableDictionary *subDict = dict[key];
@@ -298,16 +297,17 @@
                     break;
                 }
                 case XZObjcTypeClass: {
-                    Class v = ((Class (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
+                    Class v = ((Class (*)(id, SEL))(void *) objc_msgSend)((id)model, property->_getter);
                     value = v ? NSStringFromClass(v) : nil;
                     break;
                 }
                 case XZObjcTypeSEL: {
-                    SEL v = ((SEL (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
+                    SEL v = ((SEL (*)(id, SEL))(void *) objc_msgSend)((id)model, property->_getter);
                     value = v ? NSStringFromSelector(v) : nil;
                     break;
                 }
                 default: {
+                    // not supported value
                     break;
                 }
             }

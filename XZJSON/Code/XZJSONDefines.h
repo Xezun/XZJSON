@@ -40,7 +40,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///     return @{
 ///         @"name"  : @"n",
 ///         @"page"  : @"p",
-///         @"desc"  : @"ext.desc",
+///         @"desc"  : @"ext.desc", // 符号 . 会认为是 keyPath 如果不是，可以使用反斜杠转义，比如 @"ext\\.desc"。
 ///         @"bookID": @[@"id", @"ID", @"book_id"]
 ///     };
 /// }

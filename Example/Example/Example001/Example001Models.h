@@ -19,6 +19,7 @@ NS_ASSUME_NONNULL_BEGIN
 @class Example001Student;
 @interface Example001Teacher : Example001Human <XZJSONCoding, XZJSONDecoding>
 @property (nonatomic, copy) NSArray<Example001Student *> *students;
+@property (nonatomic, copy) NSString *school;
 @end
 
 @interface Example001Student : Example001Human <XZJSONEncoding>
