@@ -11,7 +11,7 @@
 
 + (NSDictionary<NSString *,id> *)mappingJSONCodingKeys {
     return @{
-        @"identifier": @"id"
+        @"identifier": @[@"id", @"identifier", @"_id"]
     };
 }
 
@@ -25,13 +25,25 @@
     };
 }
 
++ (NSDictionary<NSString *,id> *)mappingJSONCodingKeys {
+    return @{
+        @"identifier": @"id",
+        @"school": @"school\\.name"
+    };
+}
+
 - (instancetype)initWithJSONDictionary:(NSDictionary *)JSON {
-    [XZJSON object:self decodeWithDictionary:JSON];
-    
-    [self.students enumerateObjectsUsingBlock:^(Example001Student * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
-        obj.teacher = self;
-    }];
-    
+    // 调用指定初始化方法。
+    self = [self init];
+    if (self != nil) {
+        // 使用 XZJSON 进行初始化。
+        [XZJSON object:self decodeWithDictionary:JSON];
+        
+        // 处理自定义逻辑：关联学生和老师
+        [self.students enumerateObjectsUsingBlock:^(Example001Student * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+            obj.teacher = self;
+        }];
+    }
     return self;
 }
 

@@ -40,16 +40,11 @@ NS_ASSUME_NONNULL_BEGIN
     /// 属性是否为可存档的结构体类型。 YES if the struct can encoded with keyed archiver/unarchiver
     BOOL _isNSCodingStruct;
     
-    /*
-     property->key:       _mappedToKey:key     _mappedToKeyPath:nil            _mappedToKeyArray:nil
-     property->keyPath:   _mappedToKey:keyPath _mappedToKeyPath:keyPath(array) _mappedToKeyArray:nil
-     property->keys:      _mappedToKey:keys[0] _mappedToKeyPath:nil/keyPath    _mappedToKeyArray:keys(array)
-     */
-    /// 映射到属性的 JSON 键名。 the key mapped to
-    NSString            * _Nullable _JSONKey;
-    /// 映射到属性的 JOSN 键路径。 the key path mapped to (nil if the name is not key path)
+    /// 映射到属性的 JSON 键名。一定非空值，但可能并非有效值，有可能是 keyPath 或 keyArray[0]。
+    NSString            * _Nonnull _JSONKey;
+    /// 映射到属性的 JSON 键路径。如存在，则优先使用，不会与 _JSONKeyArray 同时存在。
     NSArray<NSString *> * _Nullable _JSONKeyPath;
-    /// 映射到属性的 JOSN 键集合。 the key(NSString) or keyPath(NSArray) array (nil if not mapped to multiple keys)
+    /// 映射到属性的 JSON 键集合。如存在，则优先使用。
     NSArray             * _Nullable _JSONKeyArray;
 }
 
